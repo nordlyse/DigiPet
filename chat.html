@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DigiPet sohbet</title>
+    <link rel="stylesheet" href="/src/chat.css" />
+  </head>
+  <body>
+    <header>
+      <strong id="title">Pet ile konuş</strong>
+      <span id="meta">llama.cpp · SmolLM2-135M</span>
+      <button type="button" id="close">Kapat</button>
+    </header>
+    <p id="status">Model ilk seferde indirilir, sonra çevrimdışı çalışır.</p>
+    <div id="log"></div>
+    <form id="form">
+      <input id="input" type="text" maxlength="240" placeholder="Bir şey söyle…" autocomplete="off" />
+      <button type="submit" id="send">Gönder</button>
+    </form>
+    <script type="module" src="/src/chat.ts"></script>
+  </body>
+</html>

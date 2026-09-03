@@ -31,6 +31,8 @@ if (!bridge) {
   });
   bridge.onSpecies((id: SpeciesId) => world.spawn(id));
   bridge.onVolume((v) => world.sounds.setVolume(v));
+  world.onChat = () => void bridge.openChat();
+  bridge.onPetSay((text) => world.speak(text));
   void boot();
   window.addEventListener("pointerdown", () => void world.sounds.unlock(), { once: true });
 }

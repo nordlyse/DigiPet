@@ -9,6 +9,14 @@ contextBridge.exposeInMainWorld("digipet", {
   openPicker: () => ipcRenderer.invoke("open-picker"),
   readyOverlay: () => ipcRenderer.invoke("ready-overlay"),
   updateHitRegions: (regions) => ipcRenderer.send("hit-regions", regions),
+  openChat: () => ipcRenderer.invoke("open-chat"),
+  closeChat: () => ipcRenderer.invoke("close-chat"),
+  petSay: (text) => ipcRenderer.send("pet-say", text),
+  onPetSay: (cb) => {
+    const fn = (_e, text) => cb(text);
+    ipcRenderer.on("pet-say", fn);
+    return () => ipcRenderer.removeListener("pet-say", fn);
+  },
   onDesktop: (cb) => {
     const fn = (_e, data) => cb(data);
     ipcRenderer.on("desktop-state", fn);

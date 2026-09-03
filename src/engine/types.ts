@@ -91,6 +91,10 @@ export interface DigiPetBridge {
   openPicker(): Promise<void>;
   readyOverlay(): Promise<AppConfig & { workArea: WorkArea; overlay?: OverlayFrame }>;
   updateHitRegions(regions: Rect[]): void;
+  openChat(): Promise<void>;
+  closeChat(): Promise<void>;
+  petSay(text: string): void;
+  onPetSay(cb: (text: string) => void): () => void;
   onDesktop(cb: (data: { windows: NativeWindow[]; workArea: WorkArea; overlay: OverlayFrame }) => void): () => void;
   onSpecies(cb: (species: SpeciesId) => void): () => void;
   onVolume(cb: (volume: number) => void): () => void;

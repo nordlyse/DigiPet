@@ -20,6 +20,8 @@ export class World {
   private overlay = { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight };
   private hitNotify: ((regions: Rect[]) => void) | null = null;
   private hitAcc = 0;
+  private press: { x: number; y: number; pet: PetActor } | null = null;
+  onChat?: () => void;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -76,6 +78,10 @@ export class World {
     pet.cry(true);
   }
 
+  speak(text: string) {
+    this.pets[0]?.say(text, 4.2);
+  }
+
   private clearPets() {
     for (const pet of this.pets) {
       this.scene.remove(pet.group);
@@ -112,15 +118,22 @@ export class World {
       const pet = this.hitPet() ?? this.petNear(e.clientX, e.clientY);
       if (!pet) return;
       e.preventDefault();
-      this.dragging = pet;
-      pet.grab();
-      el.setPointerCapture(e.pointerId);
+      this.press = { x: e.clientX, y: e.clientY, pet };
     });
     el.addEventListener("pointermove", (e) => {
+      if (this.press && !this.dragging) {
+        const dist = Math.hypot(e.clientX - this.press.x, e.clientY - this.press.y);
+        if (dist > 10) {
+          this.dragging = this.press.pet;
+          this.dragging.grab();
+          el.setPointerCapture(e.pointerId);
+        }
+      }
       if (!this.dragging) return;
       this.dragging.dragTo(e.clientX, e.clientY + this.dragging.pixelSize * 0.25, this.clock.elapsedTime);
     });
     const end = (e: PointerEvent) => {
+      this.press = null;
       if (!this.dragging) return;
       this.dragging.release();
       this.dragging = null;
@@ -133,8 +146,13 @@ export class World {
     el.addEventListener("pointerup", end);
     el.addEventListener("pointercancel", end);
     el.addEventListener("click", (e) => {
+      if (this.dragging) return;
       const pet = this.petNear(e.clientX, e.clientY);
-      if (pet && !this.dragging) pet.cry(true);
+      if (pet) pet.cry(true);
+    });
+    el.addEventListener("dblclick", (e) => {
+      const pet = this.petNear(e.clientX, e.clientY);
+      if (pet) this.onChat?.();
     });
   }
 

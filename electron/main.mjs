@@ -21,6 +21,7 @@ const NAMES = {
 
 let overlay = null;
 let picker = null;
+let chat = null;
 let tray = null;
 let helper = null;
 let quitting = false;
@@ -179,13 +180,43 @@ function createPicker() {
     picker.show();
     picker.focus();
     app.focus({ steal: true });
-    console.log("picker bounds", picker.getBounds(), "displays", screen.getAllDisplays().map((d) => d.bounds));
   });
-  picker.webContents.on("did-fail-load", (_e, code, desc, url) => {
-    console.error("picker failed", code, desc, url);
+}
+
+function createChat() {
+  if (chat) {
+    chat.show();
+    chat.focus();
+    return;
+  }
+  const wa = screen.getPrimaryDisplay().workArea;
+  chat = new BrowserWindow({
+    x: Math.round(wa.x + wa.width - 430),
+    y: Math.round(wa.y + 72),
+    width: 400,
+    height: 480,
+    title: "DigiPet sohbet",
+    backgroundColor: "#12202e",
+    frame: true,
+    closable: true,
+    minimizable: true,
+    fullscreenable: false,
+    alwaysOnTop: true,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.cjs"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
   });
-  picker.webContents.on("did-finish-load", () => {
-    console.log("picker loaded", picker.webContents.getURL());
+  // Must sit above the fullscreen overlay, otherwise close buttons are unclickable.
+  chat.setAlwaysOnTop(true, "pop-up-menu");
+  chat.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  chat.on("closed", () => {
+    chat = null;
+  });
+  void loadPage(chat, "chat.html").then(() => {
+    chat.show();
+    chat.focus();
   });
 }
 
@@ -207,6 +238,7 @@ function rebuildTray() {
     { type: "separator" },
     { label: "Hayvan", submenu: petMenu },
     { label: "Hayvan seçimini aç…", click: () => createPicker() },
+    { label: "Pet ile konuş", click: () => createChat() },
     { type: "separator" },
     {
       label: "Açılışta başlat",
@@ -273,6 +305,15 @@ function registerIpc() {
     overlay?.webContents.send("volume-changed", volume);
   });
   ipcMain.handle("open-picker", () => createPicker());
+  ipcMain.handle("open-chat", () => {
+    createChat();
+  });
+  ipcMain.handle("close-chat", () => {
+    if (chat && !chat.isDestroyed()) chat.close();
+  });
+  ipcMain.on("pet-say", (_e, text) => {
+    overlay?.webContents.send("pet-say", String(text ?? ""));
+  });
   ipcMain.on("hit-regions", (_e, regions) => {
     hitRegions = Array.isArray(regions) ? regions : [];
   });

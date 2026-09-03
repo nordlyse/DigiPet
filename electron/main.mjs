@@ -28,6 +28,33 @@ let quitting = false;
 let hitRegions = [];
 let latestWindows = [];
 
+if (process.platform === "win32") app.setAppUserModelId("com.nordlyse.digipet");
+
+function quitApp() {
+  quitting = true;
+  helper?.kill();
+  app.quit();
+}
+
+function iconFile(name) {
+  return path.join(__dirname, "..", "assets", name);
+}
+
+function loadIcon(name, size) {
+  const file = iconFile(name);
+  const img = fs.existsSync(file) ? nativeImage.createFromPath(file) : nativeImage.createEmpty();
+  if (size && !img.isEmpty()) return img.resize({ width: size, height: size });
+  return img;
+}
+
+function windowIcon() {
+  return loadIcon("icon.png", 256);
+}
+
+function resourceDir() {
+  return app.isPackaged ? process.resourcesPath : path.join(__dirname, "..");
+}
+
 function configPath() {
   return path.join(app.getPath("userData"), "config.json");
 }
@@ -68,10 +95,18 @@ function loadPage(win, file) {
 }
 
 function ensureHelper() {
-  const bin = path.join(__dirname, "..", "native", "list-windows");
-  const src = path.join(__dirname, "..", "native", "list-windows.c");
   if (process.platform !== "darwin") return null;
-  if (fs.existsSync(bin)) return bin;
+  const bin = path.join(resourceDir(), "native", "list-windows");
+  if (fs.existsSync(bin)) {
+    try {
+      fs.chmodSync(bin, 0o755);
+    } catch {
+      /* packaged resources may be read-only */
+    }
+    return bin;
+  }
+  if (app.isPackaged) return null;
+  const src = path.join(__dirname, "..", "native", "list-windows.c");
   execFileSync("clang", ["-O2", "-o", bin, src, "-framework", "CoreGraphics", "-framework", "CoreFoundation"]);
   return bin;
 }
@@ -122,9 +157,11 @@ function createOverlay() {
     maximizable: false,
     fullscreenable: false,
     skipTaskbar: true,
+    icon: windowIcon(),
     focusable: true,
     roundedCorners: false,
     type: process.platform === "darwin" ? "panel" : undefined,
+    icon: windowIcon(),
     backgroundColor: "#00000000",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -160,6 +197,7 @@ function createPicker() {
     width: 760,
     height: 640,
     title: "DigiPet",
+    icon: windowIcon(),
     backgroundColor: "#12202e",
     resizable: false,
     alwaysOnTop: true,
@@ -196,6 +234,7 @@ function createChat() {
     width: 400,
     height: 480,
     title: "DigiPet sohbet",
+    icon: windowIcon(),
     backgroundColor: "#12202e",
     frame: true,
     closable: true,
@@ -252,22 +291,38 @@ function rebuildTray() {
     },
     { type: "separator" },
     {
-      label: "Çıkış",
-      click: () => {
-        quitting = true;
-        app.quit();
-      },
+      label: "Quit",
+      accelerator: "CmdOrCtrl+Q",
+      click: () => quitApp(),
     },
   ]);
   if (!tray) {
-    const image = nativeImage.createFromDataURL(
-      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-    );
-    tray = new Tray(image);
+    const image = loadIcon("tray.png", process.platform === "darwin" ? 22 : 32);
+    tray = new Tray(image.isEmpty() ? loadIcon("icon.png", 32) : image);
     tray.setToolTip("DigiPet");
-    if (process.platform === "darwin") tray.setTitle("DigiPet");
+    tray.on("click", () => tray.popUpContextMenu());
+    tray.on("right-click", () => tray.popUpContextMenu());
+    tray.on("double-click", () => tray.popUpContextMenu());
   }
   tray.setContextMenu(menu);
+}
+
+function installAppMenu() {
+  const quitItem = {
+    label: "Quit",
+    accelerator: "CmdOrCtrl+Q",
+    click: () => quitApp(),
+  };
+  const template =
+    process.platform === "darwin"
+      ? [{ label: "DigiPet", submenu: [{ role: "about" }, { type: "separator" }, quitItem] }]
+      : [{ label: "DigiPet", submenu: [quitItem] }];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  if (process.platform === "darwin") {
+    app.dock?.setIcon(loadIcon("icon.png"));
+    app.dock?.setMenu(Menu.buildFromTemplate([quitItem]));
+    app.dock?.show();
+  }
 }
 
 function startHitPoll() {
@@ -328,6 +383,7 @@ app.whenReady().then(async () => {
   registerIpc();
   const cfg = loadConfig();
   app.setLoginItemSettings({ openAtLogin: cfg.openAtLogin });
+  installAppMenu();
   rebuildTray();
   startWindowWatcher();
   startHitPoll();
@@ -343,7 +399,7 @@ app.on("before-quit", () => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin" && quitting) app.quit();
+  /* stay running in the tray until Quit */
 });
 
 app.on("activate", () => {

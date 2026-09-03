@@ -6,11 +6,18 @@
   "license": "MIT",
   "type": "module",
   "main": "electron/main.mjs",
+  "author": "nordlyse <nordlyse@users.noreply.github.com>",
   "scripts": {
     "start": "node scripts/desktop.mjs",
     "desktop": "node scripts/desktop.mjs",
     "dev": "vite",
-    "build": "tsc --noEmit && vite build"
+    "build": "tsc --noEmit && vite build",
+    "build:native": "node scripts/build-native.mjs",
+    "build:ico": "node scripts/make-ico.mjs",
+    "dist": "npm run build && npm run build:native && npm run build:ico && electron-builder --mac --linux --win --publish never",
+    "dist:mac": "npm run build && npm run build:native && electron-builder --mac --publish never",
+    "dist:linux": "npm run build && electron-builder --linux --publish never",
+    "dist:win": "npm run build && npm run build:ico && electron-builder --win --x64 --publish never"
   },
   "dependencies": {
     "@wllama/wllama": "^3.6.1",
@@ -19,6 +26,7 @@
   "devDependencies": {
     "@types/three": "^0.170.0",
     "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
     "typescript": "^5.7.2",
     "vite": "^6.0.3"
   }

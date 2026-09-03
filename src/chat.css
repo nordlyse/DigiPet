@@ -1,0 +1,106 @@
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: "Segoe UI", "SF Pro Text", ui-sans-serif, system-ui, sans-serif;
+  background: #12202e;
+  color: #e8eef6;
+}
+
+body {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 8px;
+  padding: 12px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+#title {
+  flex: 1;
+}
+
+#close {
+  background: transparent;
+  color: #e8eef6;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 10px;
+  font-weight: 600;
+}
+
+#close:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+#meta, #status {
+  color: #93a4b8;
+  font-size: 11px;
+}
+
+#status { margin: 0; }
+
+#log {
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.msg {
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 8px 10px;
+  border-radius: 12px;
+  max-width: 92%;
+}
+
+.msg.user {
+  justify-self: end;
+  background: #7ad3ff;
+  color: #08202c;
+}
+
+.msg.pet {
+  justify-self: start;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+input, button {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px;
+  font: inherit;
+}
+
+input {
+  background: #0b1520;
+  color: #e8eef6;
+}
+
+button {
+  background: #7ad3ff;
+  color: #08202c;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

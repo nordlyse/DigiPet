@@ -13,6 +13,7 @@
     "build": "tsc --noEmit && vite build"
   },
   "dependencies": {
+    "@wllama/wllama": "^3.6.1",
     "three": "^0.170.0"
   },
   "devDependencies": {

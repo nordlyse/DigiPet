@@ -1,0 +1,56 @@
+appId: com.nordlyse.digipet
+productName: DigiPet
+copyright: MIT
+asar: true
+npmRebuild: false
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - electron/**/*
+  - assets/**/*
+  - package.json
+  - "!**/node_modules/**"
+asarUnpack:
+  - "**/*.wasm"
+mac:
+  category: public.app-category.entertainment
+  icon: build/icon.png
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  extraResources:
+    - from: native
+      to: native
+      filter:
+        - list-windows
+        - list-windows.c
+  target:
+    - dmg
+    - zip
+win:
+  icon: build/icon.ico
+  target:
+    - zip
+    - nsis
+linux:
+  icon: build/icon.png
+  category: Game
+  synopsis: Desktop pets that live on your screen
+  maintainer: nordlyse <nordlyse@users.noreply.github.com>
+  target:
+    - AppImage
+    - deb
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: DigiPet
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  deleteAppDataOnUninstall: false
+dmg:
+  icon: build/icon.png
+  artifactName: "${productName}-${version}-mac-${arch}.${ext}"

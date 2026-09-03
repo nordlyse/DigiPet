@@ -1,0 +1,24 @@
+{
+  "name": "digipet",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Always-on desktop pets that climb your real windows.",
+  "license": "MIT",
+  "type": "module",
+  "main": "electron/main.mjs",
+  "scripts": {
+    "start": "node scripts/desktop.mjs",
+    "desktop": "node scripts/desktop.mjs",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build"
+  },
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.170.0",
+    "electron": "^33.2.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3"
+  }
+}

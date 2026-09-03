@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DigiPet — hayvanını seç</title>
+    <link rel="stylesheet" href="/src/onboarding.css" />
+  </head>
+  <body>
+    <main id="picker">
+      <header>
+        <h1>DigiPet</h1>
+        <p>Masaüstünde yaşayacak hayvanını seç. Sonra menü çubuğundaki 🐾 ile değiştirebilirsin. Pet, açtığın gerçek pencerelerin üzerine çıkar.</p>
+      </header>
+      <section class="stage">
+        <canvas id="preview"></canvas>
+        <p id="blurb"></p>
+      </section>
+      <div id="grid" class="pet-grid"></div>
+      <button type="button" id="go">Kedi ile başla</button>
+    </main>
+    <script type="module" src="/src/onboarding.ts"></script>
+  </body>
+</html>

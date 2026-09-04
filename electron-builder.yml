@@ -37,7 +37,7 @@ linux:
   icon: build/icon.png
   category: Game
   synopsis: Desktop pets that live on your screen
-  maintainer: nordlyse <nordlyse@users.noreply.github.com>
+  maintainer: Jakob Lyse <jakob.lyse@gmail.com>
   target:
     - AppImage
     - deb

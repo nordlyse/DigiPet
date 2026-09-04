@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "module",
   "main": "electron/main.mjs",
-  "author": "nordlyse <nordlyse@users.noreply.github.com>",
+  "author": "Jakob Lyse <jakob.lyse@gmail.com>",
   "scripts": {
     "start": "node scripts/desktop.mjs",
     "desktop": "node scripts/desktop.mjs",

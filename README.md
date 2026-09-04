@@ -156,3 +156,12 @@ Aynı GGUF Raspberry Pi ve benzeri edge cihazlarda `llama-cli` ile de koşar. ES
 ## Lisans
 
 MIT. Three.js, Vite, Electron, [llama.cpp](https://github.com/ggerganov/llama.cpp), [wllama](https://github.com/ngxson/wllama): MIT. TypeScript ve SmolLM2: Apache-2.0.
+
+## Author
+
+|         |                                                     |
+| ------- | --------------------------------------------------- |
+| First name | Jakob                                               |
+| Last name  | Lyse                                                |
+| GitHub     | [nordlyse](https://github.com/nordlyse)             |
+| Email      | [jakob.lyse@gmail.com](mailto:jakob.lyse@gmail.com) |

@@ -4,6 +4,7 @@ import fs from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
+import { EngineHost, enginePath, ensureEngineBuilt } from "./engine-host.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEV_URL = process.env.DIGITPET_URL || "http://localhost:5173";
@@ -24,6 +25,7 @@ let picker = null;
 let chat = null;
 let tray = null;
 let helper = null;
+let engine = new EngineHost();
 let quitting = false;
 let hitRegions = [];
 let latestWindows = [];
@@ -33,6 +35,7 @@ if (process.platform === "win32") app.setAppUserModelId("com.nordlyse.digipet");
 function quitApp() {
   quitting = true;
   helper?.kill();
+  engine.stop();
   app.quit();
 }
 
@@ -66,10 +69,12 @@ function loadConfig() {
       onboarded: false,
       volume: 0.55,
       openAtLogin: true,
+      mcpAsked: false,
+      mcps: [],
       ...JSON.parse(fs.readFileSync(configPath(), "utf8")),
     };
   } catch {
-    return { species: "cat", onboarded: false, volume: 0.55, openAtLogin: true };
+    return { species: "cat", onboarded: false, volume: 0.55, openAtLogin: true, mcpAsked: false, mcps: [] };
   }
 }
 
@@ -221,8 +226,9 @@ function addPicker() {
   });
 }
 
-function addChat() {
+function addChat(forceMcp = false) {
   if (chat) {
+    if (forceMcp) chat.webContents.send("show-mcp");
     chat.show();
     chat.focus();
     return;
@@ -231,8 +237,8 @@ function addChat() {
   chat = new BrowserWindow({
     x: Math.round(wa.x + wa.width - 430),
     y: Math.round(wa.y + 72),
-    width: 400,
-    height: 480,
+    width: 420,
+    height: 620,
     title: "DigiPet sohbet",
     icon: windowIcon(),
     backgroundColor: "#12202e",
@@ -253,10 +259,20 @@ function addChat() {
   chat.on("closed", () => {
     chat = null;
   });
-  void loadPage(chat, "chat.html").then(() => {
+  const open = async () => {
+    if (!app.isPackaged) {
+      const url = new URL(`${DEV_URL}/chat.html`);
+      if (forceMcp) url.searchParams.set("mcp", "1");
+      await chat.loadURL(url.toString());
+    } else {
+      await chat.loadFile(path.join(__dirname, "..", "dist", "chat.html"), {
+        query: forceMcp ? { mcp: "1" } : {},
+      });
+    }
     chat.show();
     chat.focus();
-  });
+  };
+  void open();
 }
 
 function rebuildTray() {
@@ -278,6 +294,7 @@ function rebuildTray() {
     { label: "Hayvan", submenu: petMenu },
     { label: "Hayvan seçimini aç…", click: () => addPicker() },
     { label: "Pet ile konuş", click: () => addChat() },
+    { label: "Yardımcılar (MCP)…", click: () => addChat(true) },
     { type: "separator" },
     {
       label: "Açılışta başlat",
@@ -337,6 +354,63 @@ function startHitPoll() {
   }, 16);
 }
 
+function fallbackCatalog() {
+  const os = process.platform === "darwin" ? "darwin" : process.platform === "win32" ? "win32" : "linux";
+  return [
+    {
+      id: "weather",
+      title: "Hava durumu",
+      description: "Open-Meteo ile şehir hava raporu. Anahtar gerekmez.",
+      license: "MIT (araç) · Open-Meteo CC BY 4.0 (veri)",
+      platforms: ["darwin", "win32", "linux"],
+    },
+    {
+      id: "mail",
+      title: "Mail",
+      description: "Gelen kutusu oku, gönder, sil.",
+      license: "MIT",
+      platforms: ["darwin", "win32", "linux"],
+    },
+    {
+      id: "calendar",
+      title: "Takvim",
+      description: "Bugünkü toplantı / etkinlik var mı bak.",
+      license: "MIT",
+      platforms: ["darwin", "win32", "linux"],
+    },
+    {
+      id: "apps",
+      title: "Uygulamalar",
+      description: "Uygulama aç / kapat.",
+      license: "MIT",
+      platforms: ["darwin", "win32", "linux"],
+    },
+    {
+      id: "messages",
+      title: "Mesajlar",
+      description: "Mesaj gönder / sil. macOS Messages; diğerlerinde sınırlı.",
+      license: "MIT",
+      platforms: ["darwin", "win32", "linux"],
+    },
+  ].filter((item) => item.platforms.includes(os));
+}
+
+async function bootEngine() {
+  const cfg = loadConfig();
+  const bin = enginePath(resourceDir());
+  if (!app.isPackaged) {
+    chat?.webContents.send("engine-progress", { pct: 3, label: "Rust motoru derleniyor…" });
+    ensureEngineBuilt(path.join(__dirname, ".."), bin);
+  }
+  if (!fs.existsSync(bin)) {
+    throw new Error("Rust motoru yok. rustup + cargo kurup npm run build:native çalıştır.");
+  }
+  engine.onProgress = (pct, label) => {
+    chat?.webContents.send("engine-progress", { pct, label });
+  };
+  await engine.start(bin, path.join(app.getPath("userData"), "models"), cfg.mcps ?? []);
+}
+
 function registerIpc() {
   ipcMain.handle("get-config", () => loadConfig());
   ipcMain.handle("complete-onboarding", (_e, species) => {
@@ -360,11 +434,39 @@ function registerIpc() {
     overlay?.webContents.send("volume-changed", volume);
   });
   ipcMain.handle("open-picker", () => addPicker());
-  ipcMain.handle("open-chat", () => {
-    addChat();
-  });
+  ipcMain.handle("open-chat", () => addChat());
   ipcMain.handle("close-chat", () => {
     if (chat && !chat.isDestroyed()) chat.close();
+  });
+  ipcMain.handle("mcp-catalog", async () => {
+    return { items: fallbackCatalog(), asked: loadConfig().mcpAsked === true, enabled: loadConfig().mcps ?? [] };
+  });
+  ipcMain.handle("set-mcps", async (_e, mcps) => {
+    const list = Array.isArray(mcps) ? mcps.filter((id) => typeof id === "string") : [];
+    const next = { ...loadConfig(), mcps: list, mcpAsked: true };
+    saveConfig(next);
+    try {
+      await bootEngine();
+      await engine.setMcps(list);
+    } catch {
+      /* catalog still saved; engine may start later */
+    }
+    return next;
+  });
+  ipcMain.handle("chat-pet", async (_e, payload) => {
+    await bootEngine();
+    if (payload?.reset) {
+      await engine.reset();
+      return "";
+    }
+    const cfg = loadConfig();
+    return engine.chat({
+      species: payload?.species,
+      name: payload?.name,
+      text: payload?.text,
+      lang: payload?.lang || "tr",
+      mcps: cfg.mcps ?? [],
+    });
   });
   ipcMain.on("pet-say", (_e, payload) => {
     overlay?.webContents.send("pet-say", payload);
@@ -396,6 +498,7 @@ app.whenReady().then(async () => {
 app.on("before-quit", () => {
   quitting = true;
   helper?.kill();
+  engine.stop();
 });
 
 app.on("window-all-closed", () => {

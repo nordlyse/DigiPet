@@ -6,3 +6,6 @@ release
 .vite
 out
 native/list-windows
+native/digipet-engine
+native/digipet-engine.exe
+native/engine/target

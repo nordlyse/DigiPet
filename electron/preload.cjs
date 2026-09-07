@@ -11,6 +11,19 @@ contextBridge.exposeInMainWorld("digipet", {
   updateHitRegions: (regions) => ipcRenderer.send("hit-regions", regions),
   openChat: () => ipcRenderer.invoke("open-chat"),
   closeChat: () => ipcRenderer.invoke("close-chat"),
+  mcpCatalog: () => ipcRenderer.invoke("mcp-catalog"),
+  setMcps: (mcps) => ipcRenderer.invoke("set-mcps", mcps),
+  chatPet: (payload) => ipcRenderer.invoke("chat-pet", payload),
+  onEngineProgress: (cb) => {
+    const fn = (_e, data) => cb(data?.pct ?? 0, data?.label ?? "");
+    ipcRenderer.on("engine-progress", fn);
+    return () => ipcRenderer.removeListener("engine-progress", fn);
+  },
+  onShowMcp: (cb) => {
+    const fn = () => cb();
+    ipcRenderer.on("show-mcp", fn);
+    return () => ipcRenderer.removeListener("show-mcp", fn);
+  },
   petSay: (text, prompt) => ipcRenderer.send("pet-say", { text, prompt }),
   onPetSay: (cb) => {
     const fn = (_e, data) => cb(data);

@@ -84,7 +84,7 @@ npm run dist
 Bu sıra şunu yapar:
 
 1. TypeScript kontrolü + Vite production build (`dist/`)
-2. macOS’ta `native/list-windows` derlemesi (`clang`)
+2. Rust `digipet-engine` derlemesi (`cargo`) + macOS’ta `native/list-windows` (`clang`)
 3. Windows ICO üretimi (`sips` + `scripts/make-ico.mjs`)
 4. electron-builder ile macOS, Linux ve Windows paketleri (`release/`)
 
@@ -107,7 +107,18 @@ Ayar dosyası: `electron-builder.yml`. Çıktı klasörü: `release/`.
 | [Node.js](https://nodejs.org/) | 20.x (18+ çoğu işi görür) | `npm`, Vite, Electron |
 | npm | Node ile gelir | bağımlılıklar |
 
-`npm install` şunları `node_modules` içine indirir; ayrıca sisteme kurmana gerek yok: Electron 33, electron-builder 25, Vite 6, TypeScript, Three.js, wllama.
+`npm install` şunları `node_modules` içine indirir; ayrıca sisteme kurmana gerek yok: Electron 33, electron-builder 25, Vite 6, TypeScript, Three.js.
+
+**Rust motoru (sohbet + MCP):**
+
+| Yazılım | Neden |
+|---|---|
+| [Rust](https://rustup.rs/) (stable) | Hugging Face Candle sidecar (`native/engine`) |
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+npm run build:native
+```
 
 **macOS’ta Mac paketi + Windows ICO için (bu makine):**
 
@@ -143,19 +154,20 @@ xcode-select --install
 - `npm run dist` bulunduğun OS’tan **üç** platformu da hedefleyebilir (electron-builder çapraz derleme). NSIS için Mac’te Wine otomatik iner.
 - Pencere tırmanan native yardımcı yalnızca **macOS** paketinin `Contents/Resources/native/list-windows` içine konur.
 
-## Sohbet (yerel AI)
+## Sohbet (yerel AI + MCP)
 
-Pet’e **çift tık** veya tepsi menüsünden **Pet ile konuş**.
+Pet’e **çift tık** veya tepsi menüsünden **Pet ile konuş**. İlk açılışta MIT / Apache-2.0 yardımcıları (hava, mail, takvim, uygulama, mesaj) için bir onay listesi çıkar; işaretlediklerin yüklenir. Tepside **Yardımcılar (MCP)…** ile tekrar açılır.
 
-- Çalışma zamanı: [wllama](https://github.com/ngxson/wllama) (MIT) — llama.cpp WASM
+- Motor: [Candle](https://github.com/huggingface/candle) (Apache-2.0 / MIT) — saf Rust sidecar `digipet-engine`
 - Model: [SmolLM2-135M-Instruct Q4_K_M](https://huggingface.co/unsloth/SmolLM2-135M-Instruct-GGUF) (Apache-2.0, ~105 MB)
+- Araçlar: süreç içi MCP (Open-Meteo hava; platform mail / takvim / uygulama / mesaj). Spring AI yok.
 - İlk mesajda model Hugging Face’ten bir kez iner, sonra çevrimdışı çalışır
 
-Aynı GGUF Raspberry Pi ve benzeri edge cihazlarda `llama-cli` ile de koşar. ESP32 sınıfı mikrokontrolcülerde LLM çalışmaz.
+Aynı GGUF Raspberry Pi sınıfında da koşabilir. ESP32’de LLM çalışmaz.
 
 ## Lisans
 
-MIT. Three.js, Vite, Electron, [llama.cpp](https://github.com/ggerganov/llama.cpp), [wllama](https://github.com/ngxson/wllama): MIT. TypeScript ve SmolLM2: Apache-2.0.
+MIT. Three.js, Vite, Electron: MIT. [Candle](https://github.com/huggingface/candle), TypeScript ve SmolLM2: Apache-2.0.
 
 ## Author
 

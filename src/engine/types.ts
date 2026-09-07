@@ -83,11 +83,21 @@ export interface WorkArea {
   height: number;
 }
 
+export interface McpItem {
+  id: string;
+  title: string;
+  description: string;
+  license: string;
+  platforms: string[];
+}
+
 export interface AppConfig {
   species: SpeciesId;
   onboarded: boolean;
   volume: number;
   openAtLogin: boolean;
+  mcpAsked?: boolean;
+  mcps?: string[];
 }
 
 export interface OverlayFrame {
@@ -113,6 +123,11 @@ export interface DigiPetBridge {
   updateHitRegions(regions: Rect[]): void;
   openChat(): Promise<void>;
   closeChat(): Promise<void>;
+  mcpCatalog(): Promise<{ items: McpItem[]; asked: boolean; enabled: string[] }>;
+  setMcps(mcps: string[]): Promise<AppConfig>;
+  chatPet(payload: { species: SpeciesId; name: string; text: string; lang?: string; reset?: boolean }): Promise<string>;
+  onEngineProgress(cb: (pct: number, label: string) => void): () => void;
+  onShowMcp(cb: () => void): () => void;
   petSay(text: string, prompt?: string): void;
   onPetSay(cb: (data: PetSpeech | string) => void): () => void;
   onDesktop(cb: (data: { windows: NativeWindow[]; workArea: WorkArea; overlay: OverlayFrame }) => void): () => void;

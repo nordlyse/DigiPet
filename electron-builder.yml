@@ -14,17 +14,19 @@ files:
   - "!**/node_modules/**"
 asarUnpack:
   - "**/*.wasm"
+extraResources:
+  - from: native
+    to: native
+    filter:
+      - list-windows
+      - list-windows.c
+      - digipet-engine
+      - digipet-engine.exe
 mac:
   category: public.app-category.entertainment
   icon: build/icon.png
   hardenedRuntime: false
   gatekeeperAssess: false
-  extraResources:
-    - from: native
-      to: native
-      filter:
-        - list-windows
-        - list-windows.c
   target:
     - dmg
     - zip

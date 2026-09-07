@@ -5,8 +5,8 @@ export const AI_MODEL = {
   repo: "unsloth/SmolLM2-135M-Instruct-GGUF",
   file: "SmolLM2-135M-Instruct-Q4_K_M.gguf",
   license: "Apache-2.0",
-  runtime: "llama.cpp via wllama (MIT)",
-  sizeHint: "~105 MB, ~200 MB RAM, Raspberry Pi / edge class",
+  runtime: "Hugging Face Candle (Apache-2.0 / MIT) via native Rust sidecar",
+  sizeHint: "~105 MB GGUF, CPU, Raspberry Pi / edge class",
 } as const;
 
 const VOICE_TR: Record<SpeciesId, string> = {

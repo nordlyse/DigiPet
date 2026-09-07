@@ -9,13 +9,6 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
-    headers: {
-      "Cross-Origin-Embedder-Policy": "require-corp",
-      "Cross-Origin-Opener-Policy": "same-origin",
-    },
-  },
-  optimizeDeps: {
-    exclude: ["@wllama/wllama"],
   },
   worker: {
     format: "es",

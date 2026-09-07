@@ -16,11 +16,10 @@
     "build:ico": "node scripts/make-ico.mjs",
     "dist": "npm run build && npm run build:native && npm run build:ico && electron-builder --mac --linux --win --publish never",
     "dist:mac": "npm run build && npm run build:native && electron-builder --mac --publish never",
-    "dist:linux": "npm run build && electron-builder --linux --publish never",
-    "dist:win": "npm run build && npm run build:ico && electron-builder --win --x64 --publish never"
+    "dist:linux": "npm run build && npm run build:native && electron-builder --linux --publish never",
+    "dist:win": "npm run build && npm run build:native && npm run build:ico && electron-builder --win --x64 --publish never"
   },
   "dependencies": {
-    "@wllama/wllama": "^3.6.1",
     "three": "^0.170.0"
   },
   "devDependencies": {

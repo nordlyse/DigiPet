@@ -9,10 +9,22 @@
   <body>
     <header>
       <strong id="title">Pet ile konuş</strong>
-      <span id="meta">llama.cpp · SmolLM2-135M</span>
+      <span id="meta">Candle · SmolLM2-135M · MCP</span>
       <button type="button" id="close">Kapat</button>
     </header>
-    <p id="status">Model ilk seferde indirilir, sonra çevrimdışı çalışır.</p>
+    <p id="status">Rust motoru ilk seferde modeli indirir, sonra çevrimdışı çalışır.</p>
+    <section id="mcp-panel" hidden>
+      <h2>Yardımcı araçlar (MCP)</h2>
+      <p>
+        Platformuna göre MIT / Apache-2.0 araçlar. İstediğine çarpı at, sonra yükle. Pet bunları sohbette çağırır
+        (hava, mail, takvim, uygulama, mesaj).
+      </p>
+      <div id="mcp-list"></div>
+      <div class="mcp-actions">
+        <button type="button" id="mcp-save">Seçilenleri yükle</button>
+        <button type="button" id="mcp-skip" class="ghost">Şimdilik geç</button>
+      </div>
+    </section>
     <div id="log"></div>
     <form id="form">
       <input id="input" type="text" maxlength="240" placeholder="Bir şey söyle…" autocomplete="off" />

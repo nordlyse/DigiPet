@@ -47,7 +47,7 @@ form.addEventListener("submit", async (e) => {
       status.textContent = `${label} (${pct}%)`;
     });
     add("pet", reply);
-    window.digipet?.petSay(reply);
+    window.digipet?.petSay(reply, text);
     status.textContent = "llama.cpp · SmolLM2-135M · çevrimdışı";
   } catch (err) {
     const message = err instanceof Error ? err.message : "Sohbet başarısız";

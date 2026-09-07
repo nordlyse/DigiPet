@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { createPetModel } from "./pets/createPet";
+import { addPetModel } from "./pets/addPet";
 import { SPECIES, SPECIES_ORDER } from "./pets/species";
 import type { SpeciesId } from "./engine/types";
 
@@ -16,7 +16,13 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0x223344, 1.1));
 const sun = new THREE.DirectionalLight(0xfff1d0, 1);
 sun.position.set(2, 4, 3);
 scene.add(sun);
-let model = createPetModel(selected);
+const fill = new THREE.DirectionalLight(0xd5e7ff, 0.75);
+fill.position.set(-2, 2, -4);
+scene.add(fill);
+const rim = new THREE.DirectionalLight(0xfff1e0, 0.4);
+rim.position.set(0, 1.4, 4);
+scene.add(rim);
+let model = addPetModel(selected);
 scene.add(model.root);
 
 function resize() {
@@ -31,7 +37,7 @@ resize();
 function show(id: SpeciesId) {
   scene.remove(model.root);
   selected = id;
-  model = createPetModel(id);
+  model = addPetModel(id);
   scene.add(model.root);
   document.querySelectorAll(".pet-card").forEach((el) => {
     el.classList.toggle("on", (el as HTMLElement).dataset.id === id);

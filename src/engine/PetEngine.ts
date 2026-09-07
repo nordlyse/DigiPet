@@ -1,9 +1,10 @@
 import * as THREE from "three";
 import type { SoundEngine } from "../audio/SoundEngine";
-import { createPetModel, type PetRig } from "../pets/createPet";
+import { addPetModel, type PetRig } from "../pets/addPet";
 import { SPECIES } from "../pets/species";
+import { detectMood, moodSound, type Mood } from "../pets/mood";
 import { FLOOR, platformAt } from "./Platforms";
-import type { PetState, Platform, Rect, Species, SpeciesId } from "./types";
+import type { IdleAct, PetState, Platform, Rect, Species, SpeciesId } from "./types";
 
 export interface PetTarget {
   x: number;
@@ -36,6 +37,11 @@ export class PetActor {
   label: HTMLDivElement;
   bubble: HTMLDivElement;
   bubbleUntil = 0;
+  mood: Mood = "neutral";
+  moodUntil = 0;
+  act: IdleAct | null = null;
+  actUntil = 0;
+  private pendingAct: IdleAct | null = null;
   private lastSoundAt = -10;
   private motionT = 0;
   private motionDur = 1;
@@ -52,7 +58,7 @@ export class PetActor {
     labelsRoot: HTMLElement,
   ) {
     this.species = SPECIES[speciesId];
-    this.rig = createPetModel(speciesId);
+    this.rig = addPetModel(speciesId);
     this.group = new THREE.Group();
     this.group.add(this.rig.root);
     this.x = spawn.x;
@@ -90,6 +96,14 @@ export class PetActor {
     this.bubbleUntil = this.age + seconds;
   }
 
+  emote(text: string, prompt?: string, seconds = 4.2) {
+    this.mood = detectMood(prompt, text);
+    this.moodUntil = this.age + 3.4;
+    this.lastSoundAt = this.age;
+    void this.sounds.emote(this.species.id, this.mood);
+    this.say(`${moodSound(this.species.id, this.mood)}\n${text}`, seconds);
+  }
+
   cry(force = false) {
     if (!force && this.age - this.lastSoundAt < 1.6) return;
     this.lastSoundAt = this.age;
@@ -97,10 +111,26 @@ export class PetActor {
     this.say(this.species.sound);
   }
 
+  get acting() {
+    return !!this.act && this.age < this.actUntil;
+  }
+
+  startAct(kind: IdleAct, seconds?: number) {
+    if (this.grabbed) return;
+    this.target = null;
+    this.pendingAct = null;
+    this.act = kind;
+    this.actUntil = this.age + (seconds ?? actDuration(kind));
+    this.idleUntil = this.actUntil + 0.35;
+    this.state = kind === "sleep" ? "sleep" : "sit";
+  }
+
   grab() {
     this.grabbed = true;
     this.state = "drag";
     this.target = null;
+    this.act = null;
+    this.pendingAct = null;
     this.vy = 0;
     this.dragTrail = [];
   }
@@ -126,7 +156,9 @@ export class PetActor {
     if (this.dragTrail.length > 10) this.dragTrail.shift();
   }
 
-  goTo(target: PetTarget) {
+  goTo(target: PetTarget, thenAct?: IdleAct) {
+    this.act = null;
+    this.pendingAct = thenAct ?? null;
     this.target = target;
     this.state = target.mode === "walk" ? "walk" : target.mode;
     if (this.state === "fly" || this.state === "jump") {
@@ -148,6 +180,8 @@ export class PetActor {
   fall() {
     if (this.grabbed || this.state === "fall" || this.state === "drag") return;
     this.target = null;
+    this.act = null;
+    this.pendingAct = null;
     this.state = "fall";
     this.vy = Math.max(this.vy, 40);
     this.platform = FLOOR;
@@ -156,6 +190,10 @@ export class PetActor {
   update(dt: number, platforms: Platform[], bounds: { minX: number; maxX: number; floorY: number; height: number }) {
     this.age += dt;
     if (this.age > this.bubbleUntil) this.bubble.classList.add("hidden");
+    if (this.act && this.age >= this.actUntil) {
+      this.act = null;
+      if (this.state === "sleep") this.state = "idle";
+    }
 
     if (this.state === "drag") {
       this.animate(dt);
@@ -254,6 +292,12 @@ export class PetActor {
 
   private finishMove(next: PetState) {
     this.target = null;
+    if (this.pendingAct) {
+      const follow = this.pendingAct;
+      this.pendingAct = null;
+      this.startAct(follow);
+      return;
+    }
     this.state = next;
     this.idleUntil = this.age + 1.1 + Math.random() * 2.4;
   }
@@ -274,25 +318,156 @@ export class PetActor {
     if (this.rig.tail) this.rig.tail.rotation.y = Math.sin(t * (walk ? 8 : 2.2)) * 0.45;
     if (this.rig.trunk) this.rig.trunk.rotation.x = 0.3 + Math.sin(t * 2.1) * 0.2;
     this.rig.ears.forEach((ear, i) => {
-      ear.rotation.x = Math.sin(t * 3 + i) * 0.08;
+      const flop = this.moodPose("sad") ? 0.55 : this.moodPose("happy") ? -0.12 : this.moodPose("scared") ? 0.35 : 0;
+      ear.rotation.x = flop + Math.sin(t * 3 + i) * 0.08;
     });
-    this.rig.head.rotation.y = Math.sin(t * 1.3) * 0.12;
-    this.rig.body.scale.y = 1 + Math.sin(t * 2.6) * 0.03;
-    if (this.state === "sleep") this.group.rotation.z = this.facing * 0.9;
+    const headTurn = Math.sin(t * 1.3) * 0.12;
+    this.rig.head.rotation.y = headTurn + (this.moodPose("curious") ? 0.18 : 0);
+    this.rig.head.rotation.x = this.moodPose("sad") ? 0.22 : this.moodPose("scared") ? -0.12 : this.moodPose("curious") ? -0.08 : 0;
+    this.rig.head.rotation.z = this.moodPose("curious") ? 0.18 : this.moodPose("angry") ? 0.06 : 0;
+    this.rig.body.scale.set(1, 1 + Math.sin(t * 2.6) * 0.03, 1);
+    this.applyAct(dt, t);
+    this.applyFace(t);
+    if (this.state === "sleep" || this.act === "sleep") this.group.rotation.z = this.facing * 0.9;
+    else if (this.act === "ghostPeek") this.group.rotation.z = Math.sin(t * 6) * 0.18;
+    else if (this.act === "sway") this.group.rotation.z = Math.sin(t * 3.2) * 0.22;
     else this.group.rotation.z = THREE.MathUtils.damp(this.group.rotation.z, 0, 8, dt);
-    this.rig.root.position.y = this.state === "sit" ? -0.08 : 0;
+    this.rig.root.position.y = this.state === "sit" || this.acting ? -0.08 : this.moodPose("sad") ? -0.04 : 0;
+  }
+
+  private applyAct(dt: number, t: number) {
+    const restX = this.rig.head.userData.restX;
+    if (typeof restX === "number") {
+      const hide = this.act === "turtleHide";
+      this.rig.head.position.x = THREE.MathUtils.damp(this.rig.head.position.x, hide ? restX * 0.14 : restX, 7, dt);
+    }
+    if (!this.acting) return;
+    const kind = this.act!;
+    if (kind === "yawn") {
+      this.rig.head.rotation.x = -0.38;
+      this.rig.head.rotation.z = 0;
+    } else if (kind === "stretch") {
+      this.rig.body.scale.set(1.08, 0.92, 1.22);
+      this.rig.legs.forEach((leg, i) => {
+        leg.rotation.x = i < 2 ? -0.55 : 0.7;
+      });
+    } else if (kind === "trunkUp" && this.rig.trunk) {
+      this.rig.trunk.rotation.x = -1.05 + Math.sin(t * 3) * 0.08;
+    } else if (kind === "earWiggle") {
+      this.rig.ears.forEach((ear, i) => {
+        ear.rotation.z = (i === 0 ? -1 : 1) * (0.25 + Math.sin(t * 18 + i) * 0.42);
+        ear.rotation.x = Math.sin(t * 16 + i * 1.7) * 0.28;
+      });
+    } else if (kind === "preen") {
+      this.rig.head.rotation.z = 0.55;
+      this.rig.head.rotation.y = 0.35;
+      if (this.rig.wings[0]) this.rig.wings[0].rotation.z = 1.15;
+    } else if (kind === "ruffle") {
+      this.rig.body.scale.setScalar(1 + Math.sin(t * 14) * 0.06);
+      this.rig.wings.forEach((wing, i) => {
+        wing.rotation.z = (i === 0 ? 1 : -1) * (0.55 + Math.sin(t * 12 + i) * 0.55);
+      });
+    } else if (kind === "watch") {
+      this.rig.head.rotation.x = -0.06 + Math.sin(t * 0.8) * 0.05;
+      this.rig.head.rotation.y = Math.sin(t * 0.55) * 0.12;
+    } else if (kind === "read") {
+      this.rig.head.rotation.x = 0.42 + Math.sin(t * 1.4) * 0.08;
+      this.rig.head.rotation.y = Math.sin(t * 0.9) * 0.18;
+    } else if (kind === "ghostPeek") {
+      this.rig.head.rotation.y = 0.45;
+      this.rig.pupils.forEach((p) => p.scale.setScalar(1.45));
+    } else if (kind === "sleep") {
+      this.rig.head.rotation.x = 0.18;
+      this.rig.pupils.forEach((p) => p.scale.set(1, 0.12, 1));
+    }
+  }
+
+  private moodPose(mood: Mood) {
+    return this.age < this.moodUntil && this.mood === mood;
+  }
+
+  private applyFace(t: number) {
+    const talking = this.age < this.bubbleUntil;
+    const yawning = this.act === "yawn";
+    const pupil =
+      this.act === "sleep"
+        ? 0.2
+        : this.act === "ghostPeek"
+          ? 1.45
+          : this.moodPose("scared")
+          ? 1.55
+          : this.moodPose("happy")
+            ? 1.18
+            : this.moodPose("sad")
+              ? 0.72
+              : this.moodPose("angry")
+                ? 0.85
+                : 1;
+    const lookY = this.moodPose("sad") ? -0.03 : this.moodPose("curious") ? 0.02 : 0;
+    this.rig.pupils.forEach((p) => {
+      if (this.act === "sleep") p.scale.set(1, 0.12, 1);
+      else p.scale.set(pupil, this.moodPose("angry") ? 0.45 : pupil, pupil);
+      p.position.y = lookY;
+    });
+    const mouth = this.rig.mouth;
+    if (!mouth) return;
+    if (mouth.userData.kind === "beak") {
+      const rest = typeof mouth.userData.baseRotX === "number" ? mouth.userData.baseRotX : mouth.rotation.x;
+      mouth.rotation.x =
+        rest +
+        (yawning ? 0.35 : 0) +
+        (this.moodPose("sad") ? 0.18 : 0) +
+        (talking ? Math.abs(Math.sin(t * 16)) * 0.2 : 0);
+      return;
+    }
+    const baseY = typeof mouth.userData.baseY === "number" ? mouth.userData.baseY : mouth.position.y;
+    const open = yawning ? 1.15 : talking ? 0.45 + Math.abs(Math.sin(t * 16)) * 0.7 : this.moodPose("sad") ? 0.28 : 0.38;
+    const wide = yawning ? 1.45 : this.moodPose("happy") ? 1.7 : this.moodPose("sad") ? 0.72 : this.moodPose("scared") ? 1.35 : 1;
+    mouth.scale.set(wide, open, 1);
+    mouth.position.y = baseY + (this.moodPose("sad") ? -0.02 : this.moodPose("happy") ? 0.012 : 0);
+    mouth.rotation.z = this.moodPose("sad") ? Math.PI : 0;
   }
 
   private syncTransform(overlayHeight: number) {
     const s = this.pixelSize;
     this.group.scale.setScalar(s);
     this.group.position.set(this.x, overlayHeight - this.y, this.depth * 8);
-    this.group.rotation.y = this.facing >= 0 ? 0.35 : Math.PI - 0.35;
+    if (this.act === "watch") this.group.rotation.y = Math.PI;
+    else this.group.rotation.y = this.facing >= 0 ? 0.35 : Math.PI - 0.35;
   }
 
   private project() {
     const s = this.pixelSize;
     this.label.style.transform = `translate(-50%, 6px) translate(${this.x}px, ${this.y}px)`;
     this.bubble.style.transform = `translate(-50%, -100%) translate(${this.x}px, ${this.y - s * 1.05}px)`;
+  }
+}
+
+function actDuration(kind: IdleAct) {
+  switch (kind) {
+    case "yawn":
+      return 1.5 + Math.random() * 0.4;
+    case "sleep":
+      return 5.5 + Math.random() * 4;
+    case "stretch":
+      return 2.1 + Math.random() * 0.6;
+    case "trunkUp":
+      return 2.6 + Math.random() * 1.1;
+    case "earWiggle":
+      return 2.2 + Math.random() * 1.2;
+    case "preen":
+      return 3 + Math.random() * 1.4;
+    case "ruffle":
+      return 2.4 + Math.random() * 1;
+    case "watch":
+      return 9 + Math.random() * 8;
+    case "read":
+      return 7 + Math.random() * 7;
+    case "sway":
+      return 6 + Math.random() * 5;
+    case "turtleHide":
+      return 3.2 + Math.random() * 1.6;
+    case "ghostPeek":
+      return 2.4 + Math.random() * 1.2;
   }
 }

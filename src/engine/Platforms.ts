@@ -36,6 +36,7 @@ export function platformsFromWindows(
     platforms.push({
       id,
       title: win.title || win.app,
+      app: win.app,
       minX: localX + 18,
       maxX: localX + win.w - 18,
       topY,

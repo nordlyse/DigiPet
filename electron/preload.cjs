@@ -11,9 +11,9 @@ contextBridge.exposeInMainWorld("digipet", {
   updateHitRegions: (regions) => ipcRenderer.send("hit-regions", regions),
   openChat: () => ipcRenderer.invoke("open-chat"),
   closeChat: () => ipcRenderer.invoke("close-chat"),
-  petSay: (text) => ipcRenderer.send("pet-say", text),
+  petSay: (text, prompt) => ipcRenderer.send("pet-say", { text, prompt }),
   onPetSay: (cb) => {
-    const fn = (_e, text) => cb(text);
+    const fn = (_e, data) => cb(data);
     ipcRenderer.on("pet-say", fn);
     return () => ipcRenderer.removeListener("pet-say", fn);
   },

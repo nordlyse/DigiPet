@@ -78,8 +78,8 @@ export class World {
     pet.cry(true);
   }
 
-  speak(text: string) {
-    this.pets[0]?.say(text, 4.2);
+  speak(text: string, prompt?: string) {
+    this.pets[0]?.emote(text, prompt);
   }
 
   private clearPets() {
@@ -91,10 +91,16 @@ export class World {
   }
 
   private lights() {
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x334455, 1.05));
-    const sun = new THREE.DirectionalLight(0xfff4e5, 0.9);
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 1.15));
+    const sun = new THREE.DirectionalLight(0xfff4e5, 0.95);
     sun.position.set(-4, 10, 12);
     this.scene.add(sun);
+    const fill = new THREE.DirectionalLight(0xd5e7ff, 0.7);
+    fill.position.set(5, 4, -12);
+    this.scene.add(fill);
+    const rim = new THREE.DirectionalLight(0xfff1e0, 0.35);
+    rim.position.set(0, 2, 8);
+    this.scene.add(rim);
   }
 
   private resize() {

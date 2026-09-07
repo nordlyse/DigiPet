@@ -141,7 +141,7 @@ function pushWindows() {
   });
 }
 
-function createOverlay() {
+function addOverlay() {
   const display = screen.getPrimaryDisplay();
   overlay = new BrowserWindow({
     x: display.bounds.x,
@@ -183,7 +183,7 @@ function createOverlay() {
   void loadPage(overlay, "index.html");
 }
 
-function createPicker() {
+function addPicker() {
   if (picker) {
     picker.show();
     picker.focus();
@@ -221,7 +221,7 @@ function createPicker() {
   });
 }
 
-function createChat() {
+function addChat() {
   if (chat) {
     chat.show();
     chat.focus();
@@ -276,8 +276,8 @@ function rebuildTray() {
     { label: "DigiPet", enabled: false },
     { type: "separator" },
     { label: "Hayvan", submenu: petMenu },
-    { label: "Hayvan seçimini aç…", click: () => createPicker() },
-    { label: "Pet ile konuş", click: () => createChat() },
+    { label: "Hayvan seçimini aç…", click: () => addPicker() },
+    { label: "Pet ile konuş", click: () => addChat() },
     { type: "separator" },
     {
       label: "Açılışta başlat",
@@ -343,7 +343,7 @@ function registerIpc() {
     const next = { ...loadConfig(), species, onboarded: true };
     saveConfig(next);
     app.setLoginItemSettings({ openAtLogin: next.openAtLogin });
-    if (!overlay) createOverlay();
+    if (!overlay) addOverlay();
     else overlay.webContents.send("species-changed", species);
     rebuildTray();
     picker?.close();
@@ -359,15 +359,15 @@ function registerIpc() {
     saveConfig({ ...loadConfig(), volume });
     overlay?.webContents.send("volume-changed", volume);
   });
-  ipcMain.handle("open-picker", () => createPicker());
+  ipcMain.handle("open-picker", () => addPicker());
   ipcMain.handle("open-chat", () => {
-    createChat();
+    addChat();
   });
   ipcMain.handle("close-chat", () => {
     if (chat && !chat.isDestroyed()) chat.close();
   });
-  ipcMain.on("pet-say", (_e, text) => {
-    overlay?.webContents.send("pet-say", String(text ?? ""));
+  ipcMain.on("pet-say", (_e, payload) => {
+    overlay?.webContents.send("pet-say", payload);
   });
   ipcMain.on("hit-regions", (_e, regions) => {
     hitRegions = Array.isArray(regions) ? regions : [];
@@ -387,9 +387,9 @@ app.whenReady().then(async () => {
   rebuildTray();
   startWindowWatcher();
   startHitPoll();
-  if (!cfg.onboarded) createPicker();
+  if (!cfg.onboarded) addPicker();
   else {
-    createOverlay();
+    addOverlay();
   }
 });
 
@@ -404,6 +404,6 @@ app.on("window-all-closed", () => {
 
 app.on("activate", () => {
   const cfg = loadConfig();
-  if (!cfg.onboarded) createPicker();
-  else if (!overlay) createOverlay();
+  if (!cfg.onboarded) addPicker();
+  else if (!overlay) addOverlay();
 });

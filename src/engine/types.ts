@@ -20,6 +20,20 @@ export type PetState =
   | "sleep"
   | "drag";
 
+export type IdleAct =
+  | "yawn"
+  | "sleep"
+  | "stretch"
+  | "trunkUp"
+  | "earWiggle"
+  | "preen"
+  | "ruffle"
+  | "watch"
+  | "read"
+  | "sway"
+  | "turtleHide"
+  | "ghostPeek";
+
 export interface Species {
   id: SpeciesId;
   nameTr: string;
@@ -38,6 +52,7 @@ export interface Species {
 export interface Platform {
   id: string;
   title: string;
+  app?: string;
   minX: number;
   maxX: number;
   topY: number;
@@ -82,6 +97,11 @@ export interface OverlayFrame {
   height: number;
 }
 
+export interface PetSpeech {
+  text: string;
+  prompt?: string;
+}
+
 export interface DigiPetBridge {
   desktop: boolean;
   getConfig(): Promise<AppConfig>;
@@ -93,8 +113,8 @@ export interface DigiPetBridge {
   updateHitRegions(regions: Rect[]): void;
   openChat(): Promise<void>;
   closeChat(): Promise<void>;
-  petSay(text: string): void;
-  onPetSay(cb: (text: string) => void): () => void;
+  petSay(text: string, prompt?: string): void;
+  onPetSay(cb: (data: PetSpeech | string) => void): () => void;
   onDesktop(cb: (data: { windows: NativeWindow[]; workArea: WorkArea; overlay: OverlayFrame }) => void): () => void;
   onSpecies(cb: (species: SpeciesId) => void): () => void;
   onVolume(cb: (volume: number) => void): () => void;

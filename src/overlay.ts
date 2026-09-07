@@ -32,7 +32,10 @@ if (!bridge) {
   bridge.onSpecies((id: SpeciesId) => world.spawn(id));
   bridge.onVolume((v) => world.sounds.setVolume(v));
   world.onChat = () => void bridge.openChat();
-  bridge.onPetSay((text) => world.speak(text));
+  bridge.onPetSay((data) => {
+    if (typeof data === "string") world.speak(data);
+    else world.speak(data.text, data.prompt);
+  });
   void boot();
   window.addEventListener("pointerdown", () => void world.sounds.unlock(), { once: true });
 }

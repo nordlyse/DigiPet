@@ -1,6 +1,7 @@
 import { Wllama, LoggerWithoutDebug } from "@wllama/wllama";
 import wasmUrl from "@wllama/wllama/esm/wasm/wllama.wasm?url";
 import { AI_MODEL, systemPrompt } from "./persona";
+import { appLanguage, looksForeign } from "./locale";
 import type { SpeciesId } from "../engine/types";
 
 export type ProgressFn = (pct: number, label: string) => void;
@@ -43,14 +44,24 @@ export async function ensureAi(progress: ProgressFn) {
 
 export async function chatWithPet(species: SpeciesId, name: string, userText: string, progress: ProgressFn) {
   const llm = await ensureAi(progress);
+  const lang = appLanguage();
   history.push({ role: "user", content: userText });
   if (history.length > 6) history.splice(0, history.length - 6);
-  const res = await llm.createChatCompletion({
-    messages: [{ role: "system", content: systemPrompt(species, name) }, ...history],
-    max_tokens: 64,
-    temperature: 0.8,
-  });
-  const text = (res.choices[0]?.message.content ?? "").trim() || "…";
+  const ask = async (extra?: string) => {
+    const res = await llm.createChatCompletion({
+      messages: [
+        { role: "system", content: systemPrompt(species, name, lang) + (extra ?? "") },
+        ...history,
+      ],
+      max_tokens: 64,
+      temperature: extra ? 0.4 : 0.8,
+    });
+    return (res.choices[0]?.message.content ?? "").trim() || "…";
+  };
+  let text = await ask();
+  if (looksForeign(text, lang)) {
+    text = await ask(` Repeat the same meaning strictly in ${lang === "tr" ? "Türkçe" : lang}.`);
+  }
   history.push({ role: "assistant", content: text });
   return text;
 }

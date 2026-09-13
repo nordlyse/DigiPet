@@ -24,7 +24,7 @@ export function mcpCatalog() {
       id: "weather",
       title: "Hava durumu",
       description: "Open-Meteo ile şehir hava raporu (anahtar gerekmez).",
-      license: "MIT · Open-Meteo CC BY 4.0",
+      license: "MIT yardımcı · Open-Meteo veri CC BY 4.0",
       platforms: ["darwin", "win32", "linux"],
     },
     {
@@ -35,14 +35,22 @@ export function mcpCatalog() {
         : win
           ? "Outlook gelen kutusu oku, gönder, sil."
           : "Linux’ta gönderim xdg-email ile; okuma sınırlı.",
-      license: "MIT",
+      license: mac
+        ? "MIT yardımcı · Apple Mail kendi koşulları"
+        : win
+          ? "MIT yardımcı · Outlook kendi koşulları"
+          : "MIT yardımcı · xdg-email / posta uygulaması kendi koşulları",
       platforms: ["darwin", "win32", "linux"],
     },
     {
       id: "calendar",
       title: win ? "Takvim (Outlook)" : mac ? "Takvim (Calendar)" : "Takvim (khal)",
       description: "Önümüzdeki 24 saatte toplantı / etkinlik var mı bak.",
-      license: "MIT",
+      license: mac
+        ? "MIT yardımcı · Apple Calendar kendi koşulları"
+        : win
+          ? "MIT yardımcı · Outlook kendi koşulları"
+          : "MIT yardımcı · khal / takvim uygulaması kendi koşulları",
       platforms: ["darwin", "win32", "linux"],
     },
     {
@@ -53,7 +61,7 @@ export function mcpCatalog() {
         : win
           ? "Notepad, Outlook gibi uygulamaları aç / kapat."
           : "xdg-open / gtk-launch ile uygulama aç / kapat.",
-      license: "MIT",
+      license: "MIT yardımcı · açılan uygulamalar kendi koşulları",
       platforms: ["darwin", "win32", "linux"],
     },
     {
@@ -62,7 +70,9 @@ export function mcpCatalog() {
       description: mac
         ? "iMessage gönder / silmeyi dene."
         : "Bu işletim sisteminde iMessage yok; SMS/mailto denenir.",
-      license: "MIT",
+      license: mac
+        ? "MIT yardımcı · Apple Messages kendi koşulları"
+        : "MIT yardımcı · mesaj / SMS uygulaması kendi koşulları",
       platforms: ["darwin", "win32", "linux"],
     },
   ];

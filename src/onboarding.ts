@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { addPetModel } from "./pets/addPet";
 import { SPECIES, SPECIES_ORDER } from "./pets/species";
 import type { McpItem, SpeciesId } from "./engine/types";
+import { agentLicenseSummary } from "./licenses";
 
 const preview = document.querySelector<HTMLCanvasElement>("#preview")!;
 const stepPet = document.querySelector<HTMLElement>("#step-pet")!;
@@ -9,6 +10,7 @@ const stepMcp = document.querySelector<HTMLElement>("#step-mcp")!;
 const mcpList = document.querySelector("#mcp-list")!;
 const mcpTitle = document.querySelector("#mcp-title")!;
 const mcpLead = document.querySelector("#mcp-lead")!;
+const licenseNote = document.querySelector("#license-note")!;
 let selected: SpeciesId = "cat";
 let mcpItems: McpItem[] = [];
 let mcpOnly = false;
@@ -87,6 +89,12 @@ function selectedMcps() {
   return [...mcpList.querySelectorAll<HTMLInputElement>("input:checked")].map((el) => el.value);
 }
 
+function refreshLicense() {
+  const note = agentLicenseSummary(mcpItems, selectedMcps());
+  licenseNote.textContent = note.text;
+  licenseNote.classList.toggle("multi", note.count > 1);
+}
+
 function renderMcps(enabled: string[]) {
   const on = new Set(enabled);
   mcpList.innerHTML = "";
@@ -101,6 +109,7 @@ function renderMcps(enabled: string[]) {
       </span>`;
     mcpList.append(row);
   }
+  refreshLicense();
 }
 
 async function loadMcps() {
@@ -109,7 +118,7 @@ async function loadMcps() {
   mcpItems = data.items ?? [];
   const os = data.os || "OS";
   mcpTitle.textContent = `${os} ajanları`;
-  mcpLead.textContent = `${os} için yardımcıları seç. Pet sohbette yalnızca işaretlediklerini kullanır (hava, mail, takvim, uygulama, mesaj).`;
+  mcpLead.textContent = `${os} için yardımcıları seç. Pet sohbette yalnızca işaretlediklerini kullanır (hava, mail, takvim, uygulama, mesaj). Birden fazla işaretlersen her lisans ayrı ayrı geçerli olur.`;
   renderMcps(data.enabled ?? []);
 }
 
@@ -142,6 +151,7 @@ document.querySelector("#next")!.addEventListener("click", async () => {
   showMcp();
 });
 document.querySelector("#mcp-back")!.addEventListener("click", () => showPet());
+mcpList.addEventListener("change", () => refreshLicense());
 document.querySelector("#go")!.addEventListener("click", async () => {
   await finish(selectedMcps());
 });

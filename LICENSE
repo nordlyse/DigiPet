@@ -19,3 +19,75 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+================================================================================
+Third-party software
+================================================================================
+
+DigiPet is MIT. It also ships with, or may load, separate works. Those works
+keep their own licenses. When more than one extra helper is loaded, every
+listed license applies at the same time. DigiPet does not replace them.
+
+Always present at runtime (bundled):
+
+  Three.js
+    License: MIT
+    https://github.com/mrdoob/three.js
+
+  Electron
+    License: MIT
+    https://github.com/electron/electron
+
+Build-time tools (not required to run a packaged app):
+
+  Vite
+    License: MIT
+    https://github.com/vitejs/vite
+
+  TypeScript
+    License: Apache-2.0
+    https://github.com/microsoft/TypeScript
+
+  electron-builder
+    License: MIT
+    https://github.com/electron-userland/electron-builder
+
+Optional local chat sidecar (only if `digipet-engine` is built with cargo):
+
+  Hugging Face Candle
+    License: Apache-2.0 OR MIT
+    https://github.com/huggingface/candle
+
+  SmolLM2-135M-Instruct (GGUF)
+    License: Apache-2.0
+    https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct
+
+OS helpers (loaded only when the user ticks them in setup or the tray):
+
+  Weather helper (DigiPet)
+    License: MIT
+    Forecast data: Open-Meteo, CC BY 4.0
+    https://open-meteo.com
+
+  Mail helper (DigiPet)
+    License: MIT
+    Calls Apple Mail, Outlook, or xdg-email. Those apps keep their own terms.
+
+  Calendar helper (DigiPet)
+    License: MIT
+    Calls Apple Calendar, Outlook, or khal. Those apps keep their own terms.
+
+  Apps helper (DigiPet)
+    License: MIT
+    Opens or quits OS applications. Those apps keep their own terms.
+
+  Messages helper (DigiPet)
+    License: MIT
+    Calls Apple Messages where available. That app keeps its own terms.
+
+Open-Meteo data is CC BY 4.0 (attribution). It is forecast data over HTTPS,
+not a library vendored in this tree. Apple Mail, Outlook, Calendar, Messages,
+and similar OS apps are not part of DigiPet.
+
+Direct runtime and sidecar dependencies are MIT or Apache-2.0 (Candle is dual
+Apache-2.0 / MIT). No GPL libraries are included.

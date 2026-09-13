@@ -1,6 +1,7 @@
 import { chatWithPet, resetChat } from "./ai/engine";
 import { SPECIES } from "./pets/species";
 import type { McpItem, SpeciesId } from "./engine/types";
+import { agentLicenseSummary } from "./licenses";
 
 const log = document.querySelector("#log")!;
 const form = document.querySelector("#form")!;
@@ -13,6 +14,7 @@ const mcpPanel = document.querySelector<HTMLElement>("#mcp-panel")!;
 const mcpList = document.querySelector("#mcp-list")!;
 const mcpSave = document.querySelector<HTMLButtonElement>("#mcp-save")!;
 const mcpSkip = document.querySelector<HTMLButtonElement>("#mcp-skip")!;
+const mcpLicense = document.querySelector("#mcp-license")!;
 
 function add(role: "user" | "pet", text: string) {
   const el = document.createElement("div");
@@ -31,6 +33,12 @@ async function species(): Promise<{ id: SpeciesId; name: string }> {
 let lastSpecies: SpeciesId | null = null;
 let mcpItems: McpItem[] = [];
 
+function refreshLicense() {
+  const note = agentLicenseSummary(mcpItems, selectedMcps());
+  mcpLicense.textContent = note.text;
+  mcpLicense.classList.toggle("multi", note.count > 1);
+}
+
 function renderMcps(enabled: string[]) {
   const on = new Set(enabled);
   mcpList.innerHTML = "";
@@ -45,6 +53,7 @@ function renderMcps(enabled: string[]) {
       </span>`;
     mcpList.append(row);
   }
+  refreshLicense();
 }
 
 function selectedMcps() {
@@ -85,6 +94,7 @@ void species().then((s) => {
 
 void loadMcpPanel();
 window.digipet?.onShowMcp(() => void loadMcpPanel(true));
+mcpList.addEventListener("change", () => refreshLicense());
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();

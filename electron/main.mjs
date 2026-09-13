@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage } from "electron";
+import { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, dialog } from "electron";
 import path from "node:path";
 import fs from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
@@ -53,6 +53,28 @@ function loadIcon(name, size) {
 
 function windowIcon() {
   return loadIcon("icon.png", 256);
+}
+
+function licensePath() {
+  const packed = path.join(app.getAppPath(), "LICENSE");
+  if (fs.existsSync(packed)) return packed;
+  return path.join(__dirname, "..", "LICENSE");
+}
+
+function showLicense() {
+  let detail = "DigiPet is MIT © 2026 Jakob Lyse. Third-party works keep their own licenses.";
+  try {
+    detail = fs.readFileSync(licensePath(), "utf8");
+  } catch {
+    /* fallback above */
+  }
+  void dialog.showMessageBox({
+    type: "info",
+    title: "DigiPet licenses",
+    message: "DigiPet — MIT. Extra helpers keep their own licenses.",
+    detail,
+    buttons: ["OK"],
+  });
 }
 
 function resourceDir() {
@@ -200,9 +222,9 @@ function addPicker(step) {
   const wa = screen.getPrimaryDisplay().workArea;
   picker = new BrowserWindow({
     x: Math.round(wa.x + (wa.width - 760) / 2),
-    y: Math.round(wa.y + (wa.height - 720) / 2),
+    y: Math.round(wa.y + (wa.height - 780) / 2),
     width: 760,
-    height: 720,
+    height: 780,
     title: "DigiPet",
     icon: windowIcon(),
     backgroundColor: "#12202e",
@@ -307,6 +329,7 @@ function rebuildTray() {
     { label: "Hayvan seçimini aç…", click: () => addPicker() },
     { label: `${osTitle()} ajanları…`, click: () => addPicker("mcp") },
     { label: "Pet ile konuş", click: () => addChat() },
+    { label: "Lisans…", click: () => showLicense() },
     { type: "separator" },
     {
       label: "Açılışta başlat",
@@ -342,14 +365,21 @@ function installAppMenu() {
     accelerator: "CmdOrCtrl+Q",
     click: () => quitApp(),
   };
+  const licenseItem = { label: "Lisans…", click: () => showLicense() };
   const template =
     process.platform === "darwin"
-      ? [{ label: "DigiPet", submenu: [{ role: "about" }, { type: "separator" }, quitItem] }]
-      : [{ label: "DigiPet", submenu: [quitItem] }];
+      ? [{ label: "DigiPet", submenu: [{ role: "about" }, licenseItem, { type: "separator" }, quitItem] }]
+      : [{ label: "DigiPet", submenu: [licenseItem, { type: "separator" }, quitItem] }];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
   if (process.platform === "darwin") {
+    app.setAboutPanelOptions({
+      applicationName: "DigiPet",
+      copyright: "© 2026 Jakob Lyse. MIT License.",
+      credits:
+        "Third-party: Three.js, Electron, Vite (MIT); TypeScript (Apache-2.0). Optional Candle sidecar: Apache-2.0 OR MIT. SmolLM2: Apache-2.0. OS helpers keep their own licenses; Open-Meteo data is CC BY 4.0. Loading more than one helper applies every listed license at once. Full text: LICENSE.",
+    });
     app.dock?.setIcon(loadIcon("icon.png"));
-    app.dock?.setMenu(Menu.buildFromTemplate([quitItem]));
+    app.dock?.setMenu(Menu.buildFromTemplate([licenseItem, quitItem]));
     app.dock?.show();
   }
 }

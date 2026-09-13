@@ -1,6 +1,6 @@
 appId: com.nordlyse.digipet
 productName: DigiPet
-copyright: MIT
+copyright: Copyright 2026 Jakob Lyse. MIT License.
 asar: true
 npmRebuild: false
 directories:
@@ -11,6 +11,7 @@ files:
   - electron/**/*
   - assets/**/*
   - package.json
+  - LICENSE
   - "!**/node_modules/**"
 asarUnpack:
   - "**/*.wasm"

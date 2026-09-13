@@ -167,7 +167,20 @@ Aynı GGUF Raspberry Pi sınıfında da koşabilir. ESP32’de LLM çalışmaz.
 
 ## Lisans
 
-MIT. Three.js, Vite, Electron: MIT. [Candle](https://github.com/huggingface/candle), TypeScript ve SmolLM2: Apache-2.0.
+DigiPet: MIT, © 2026 Jakob Lyse. Tam metin `LICENSE` dosyasındadır.
+
+Üçüncü parti yazılımlar kendi lisanslarını taşır. Birden fazla yardımcı yüklendiğinde hepsi aynı anda geçerlidir; DigiPet MIT onların yerine geçmez.
+
+| İş | Lisans |
+|---|---|
+| Three.js, Electron, Vite, electron-builder | MIT |
+| TypeScript | Apache-2.0 |
+| Candle (isteğe bağlı sidecar) | Apache-2.0 OR MIT |
+| SmolLM2-135M-Instruct | Apache-2.0 |
+| OS yardımcıları (mail, takvim, uygulama, mesaj) | MIT yardımcı; çağırdıkları OS uygulamaları kendi koşullarında |
+| Open-Meteo hava verisi | CC BY 4.0 (atıf) |
+
+Kurulumda ve tepside ajan seçince işaretlediğin her yardımcı için lisans satırı görünür. İki veya daha fazlasını yüklersen özet kutu hepsini listeler. Tepside **Lisans…** tam metni açar.
 
 ## Author
 

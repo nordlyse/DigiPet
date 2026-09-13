@@ -150,3 +150,20 @@ button.ghost {
   color: #e8eef6;
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
+
+.license-note {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+  color: #93a4b8;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.license-note.multi {
+  border-color: #7ad3ff;
+  color: #e8eef6;
+  background: rgba(122, 211, 255, 0.14);
+}

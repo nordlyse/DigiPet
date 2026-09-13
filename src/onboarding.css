@@ -136,3 +136,20 @@ button.ghost {
   font-size: 15px;
   cursor: pointer;
 }
+
+.license-note {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.license-note.multi {
+  border-color: var(--accent);
+  color: var(--text);
+  background: rgba(122, 211, 255, 0.14);
+}

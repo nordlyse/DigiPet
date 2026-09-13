@@ -1,10 +1,18 @@
 import * as THREE from "three";
 import { addPetModel } from "./pets/addPet";
 import { SPECIES, SPECIES_ORDER } from "./pets/species";
-import type { SpeciesId } from "./engine/types";
+import type { McpItem, SpeciesId } from "./engine/types";
 
 const preview = document.querySelector<HTMLCanvasElement>("#preview")!;
+const stepPet = document.querySelector<HTMLElement>("#step-pet")!;
+const stepMcp = document.querySelector<HTMLElement>("#step-mcp")!;
+const mcpList = document.querySelector("#mcp-list")!;
+const mcpTitle = document.querySelector("#mcp-title")!;
+const mcpLead = document.querySelector("#mcp-lead")!;
 let selected: SpeciesId = "cat";
+let mcpItems: McpItem[] = [];
+let mcpOnly = false;
+let askedAlready = false;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 40);
@@ -44,6 +52,9 @@ function show(id: SpeciesId) {
   });
   const spec = SPECIES[id];
   document.querySelector("#blurb")!.textContent = `${spec.emoji} ${spec.blurb}`;
+  document.querySelector("#next")!.textContent = askedAlready
+    ? `${spec.nameTr} ile devam`
+    : "Devam — ajanları seç";
   document.querySelector("#go")!.textContent = `${spec.nameTr} ile başla`;
 }
 
@@ -72,12 +83,83 @@ const loop = () => {
 loop();
 show("cat");
 
-document.querySelector("#go")!.addEventListener("click", async () => {
+function selectedMcps() {
+  return [...mcpList.querySelectorAll<HTMLInputElement>("input:checked")].map((el) => el.value);
+}
+
+function renderMcps(enabled: string[]) {
+  const on = new Set(enabled);
+  mcpList.innerHTML = "";
+  for (const item of mcpItems) {
+    const row = document.createElement("label");
+    row.className = "mcp-row";
+    row.innerHTML = `<input type="checkbox" value="${item.id}" ${on.has(item.id) ? "checked" : ""} />
+      <span>
+        <strong>${item.title}</strong>
+        <em>${item.license}</em>
+        ${item.description}
+      </span>`;
+    mcpList.append(row);
+  }
+}
+
+async function loadMcps() {
+  if (!window.digipet?.mcpCatalog) return;
+  const data = await window.digipet.mcpCatalog();
+  mcpItems = data.items ?? [];
+  const os = data.os || "OS";
+  mcpTitle.textContent = `${os} ajanları`;
+  mcpLead.textContent = `${os} için yardımcıları seç. Pet sohbette yalnızca işaretlediklerini kullanır (hava, mail, takvim, uygulama, mesaj).`;
+  renderMcps(data.enabled ?? []);
+}
+
+function showMcp() {
+  mcpOnly = mcpOnly || new URLSearchParams(location.search).get("step") === "mcp";
+  stepPet.hidden = true;
+  stepMcp.hidden = false;
+  document.querySelector<HTMLButtonElement>("#mcp-back")!.hidden = mcpOnly;
+  void loadMcps();
+}
+
+function showPet() {
+  stepMcp.hidden = true;
+  stepPet.hidden = false;
+  resize();
+}
+
+async function finish(mcps: string[]) {
   const bridge = window.digipet;
   if (!bridge) return;
-  await bridge.completeOnboarding(selected);
+  await bridge.completeOnboarding({ species: selected, mcps });
+}
+
+document.querySelector("#next")!.addEventListener("click", async () => {
+  if (askedAlready) {
+    const cfg = await window.digipet?.getConfig();
+    await finish(cfg?.mcps ?? []);
+    return;
+  }
+  showMcp();
+});
+document.querySelector("#mcp-back")!.addEventListener("click", () => showPet());
+document.querySelector("#go")!.addEventListener("click", async () => {
+  await finish(selectedMcps());
+});
+document.querySelector("#mcp-skip")!.addEventListener("click", async () => {
+  await finish([]);
+});
+
+window.digipet?.onOnboardingStep?.((step) => {
+  if (step === "mcp") showMcp();
+  else showPet();
 });
 
 void window.digipet?.getConfig().then((cfg) => {
+  askedAlready = cfg.mcpAsked === true;
   if (cfg.species) show(cfg.species);
+  else show(selected);
+  if (new URLSearchParams(location.search).get("step") === "mcp" || (cfg.onboarded && !cfg.mcpAsked)) {
+    mcpOnly = true;
+    showMcp();
+  }
 });

@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DigiPet — hayvanını seç</title>
+    <title>DigiPet — kurulum</title>
     <link rel="stylesheet" href="/src/onboarding.css" />
   </head>
   <body>
-    <main id="picker">
+    <main id="step-pet">
       <header>
         <h1>DigiPet</h1>
         <p>Masaüstünde yaşayacak hayvanını seç. Sonra menü çubuğundaki 🐾 ile değiştirebilirsin. Pet, açtığın gerçek pencerelerin üzerine çıkar.</p>
@@ -17,7 +17,21 @@
         <p id="blurb"></p>
       </section>
       <div id="grid" class="pet-grid"></div>
-      <button type="button" id="go">Kedi ile başla</button>
+      <button type="button" id="next">Devam — ajanları seç</button>
+    </main>
+    <main id="step-mcp" hidden>
+      <header>
+        <h1 id="mcp-title">Ajanlar</h1>
+        <p id="mcp-lead">
+          Bu işletim sistemine özel yardımcıları seç. Pet sohbette hava, mail, takvim, uygulama ve mesaj için yalnızca işaretlediklerini kullanır.
+        </p>
+      </header>
+      <div id="mcp-list"></div>
+      <div class="mcp-actions">
+        <button type="button" id="mcp-back" class="ghost">Geri</button>
+        <button type="button" id="mcp-skip" class="ghost">Ajan yükleme</button>
+        <button type="button" id="go">Seçilenlerle başla</button>
+      </div>
     </main>
     <script type="module" src="/src/onboarding.ts"></script>
   </body>

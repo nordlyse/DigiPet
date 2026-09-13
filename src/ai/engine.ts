@@ -7,7 +7,7 @@ export async function chatWithPet(species: SpeciesId, name: string, userText: st
   if (!window.digipet?.chatPet) throw new Error("Sohbet yalnızca masaüstü uygulamasında çalışır.");
   const off = window.digipet.onEngineProgress(progress);
   try {
-    progress(4, "Candle motoru…");
+    progress(8, "Pet bakıyor…");
     const text = await window.digipet.chatPet({
       species,
       name,

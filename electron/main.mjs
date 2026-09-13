@@ -4,7 +4,8 @@ import fs from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
-import { EngineHost, enginePath, ensureEngineBuilt } from "./engine-host.mjs";
+import { EngineHost, enginePath } from "./engine-host.mjs";
+import { mcpCatalog, osTitle, parseIntent, petReply, runMcp } from "./mcp-tools.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEV_URL = process.env.DIGITPET_URL || "http://localhost:5173";
@@ -188,8 +189,9 @@ function addOverlay() {
   void loadPage(overlay, "index.html");
 }
 
-function addPicker() {
+function addPicker(step) {
   if (picker) {
+    if (step) picker.webContents.send("onboarding-step", step);
     picker.show();
     picker.focus();
     return;
@@ -198,9 +200,9 @@ function addPicker() {
   const wa = screen.getPrimaryDisplay().workArea;
   picker = new BrowserWindow({
     x: Math.round(wa.x + (wa.width - 760) / 2),
-    y: Math.round(wa.y + (wa.height - 640) / 2),
+    y: Math.round(wa.y + (wa.height - 720) / 2),
     width: 760,
-    height: 640,
+    height: 720,
     title: "DigiPet",
     icon: windowIcon(),
     backgroundColor: "#12202e",
@@ -219,11 +221,21 @@ function addPicker() {
   });
   picker.setAlwaysOnTop(true, "floating");
   picker.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  void loadPage(picker, "onboarding.html").then(() => {
+  const open = async () => {
+    if (!app.isPackaged) {
+      const url = new URL(`${DEV_URL}/onboarding.html`);
+      if (step) url.searchParams.set("step", step);
+      await picker.loadURL(url.toString());
+    } else {
+      await picker.loadFile(path.join(__dirname, "..", "dist", "onboarding.html"), {
+        query: step ? { step } : {},
+      });
+    }
     picker.show();
     picker.focus();
     app.focus({ steal: true });
-  });
+  };
+  void open();
 }
 
 function addChat(forceMcp = false) {
@@ -293,8 +305,8 @@ function rebuildTray() {
     { type: "separator" },
     { label: "Hayvan", submenu: petMenu },
     { label: "Hayvan seçimini aç…", click: () => addPicker() },
+    { label: `${osTitle()} ajanları…`, click: () => addPicker("mcp") },
     { label: "Pet ile konuş", click: () => addChat() },
-    { label: "Yardımcılar (MCP)…", click: () => addChat(true) },
     { type: "separator" },
     {
       label: "Açılışta başlat",
@@ -355,66 +367,22 @@ function startHitPoll() {
 }
 
 function fallbackCatalog() {
-  const os = process.platform === "darwin" ? "darwin" : process.platform === "win32" ? "win32" : "linux";
-  return [
-    {
-      id: "weather",
-      title: "Hava durumu",
-      description: "Open-Meteo ile şehir hava raporu. Anahtar gerekmez.",
-      license: "MIT (araç) · Open-Meteo CC BY 4.0 (veri)",
-      platforms: ["darwin", "win32", "linux"],
-    },
-    {
-      id: "mail",
-      title: "Mail",
-      description: "Gelen kutusu oku, gönder, sil.",
-      license: "MIT",
-      platforms: ["darwin", "win32", "linux"],
-    },
-    {
-      id: "calendar",
-      title: "Takvim",
-      description: "Bugünkü toplantı / etkinlik var mı bak.",
-      license: "MIT",
-      platforms: ["darwin", "win32", "linux"],
-    },
-    {
-      id: "apps",
-      title: "Uygulamalar",
-      description: "Uygulama aç / kapat.",
-      license: "MIT",
-      platforms: ["darwin", "win32", "linux"],
-    },
-    {
-      id: "messages",
-      title: "Mesajlar",
-      description: "Mesaj gönder / sil. macOS Messages; diğerlerinde sınırlı.",
-      license: "MIT",
-      platforms: ["darwin", "win32", "linux"],
-    },
-  ].filter((item) => item.platforms.includes(os));
-}
-
-async function bootEngine() {
-  const cfg = loadConfig();
-  const bin = enginePath(resourceDir());
-  if (!app.isPackaged) {
-    chat?.webContents.send("engine-progress", { pct: 3, label: "Rust motoru derleniyor…" });
-    ensureEngineBuilt(path.join(__dirname, ".."), bin);
-  }
-  if (!fs.existsSync(bin)) {
-    throw new Error("Rust motoru yok. rustup + cargo kurup npm run build:native çalıştır.");
-  }
-  engine.onProgress = (pct, label) => {
-    chat?.webContents.send("engine-progress", { pct, label });
-  };
-  await engine.start(bin, path.join(app.getPath("userData"), "models"), cfg.mcps ?? []);
+  return mcpCatalog();
 }
 
 function registerIpc() {
   ipcMain.handle("get-config", () => loadConfig());
-  ipcMain.handle("complete-onboarding", (_e, species) => {
-    const next = { ...loadConfig(), species, onboarded: true };
+  ipcMain.handle("complete-onboarding", (_e, payload) => {
+    const prev = loadConfig();
+    const species = (typeof payload === "string" ? payload : payload?.species) || prev.species;
+    const mcps = Array.isArray(payload?.mcps) ? payload.mcps.filter((id) => typeof id === "string") : prev.mcps ?? [];
+    const next = {
+      ...loadConfig(),
+      species,
+      onboarded: true,
+      mcpAsked: true,
+      mcps,
+    };
     saveConfig(next);
     app.setLoginItemSettings({ openAtLogin: next.openAtLogin });
     if (!overlay) addOverlay();
@@ -439,34 +407,69 @@ function registerIpc() {
     if (chat && !chat.isDestroyed()) chat.close();
   });
   ipcMain.handle("mcp-catalog", async () => {
-    return { items: fallbackCatalog(), asked: loadConfig().mcpAsked === true, enabled: loadConfig().mcps ?? [] };
+    return {
+      items: fallbackCatalog(),
+      asked: loadConfig().mcpAsked === true,
+      enabled: loadConfig().mcps ?? [],
+      os: osTitle(),
+    };
   });
   ipcMain.handle("set-mcps", async (_e, mcps) => {
     const list = Array.isArray(mcps) ? mcps.filter((id) => typeof id === "string") : [];
     const next = { ...loadConfig(), mcps: list, mcpAsked: true };
     saveConfig(next);
-    try {
-      await bootEngine();
-      await engine.setMcps(list);
-    } catch {
-      /* catalog still saved; engine may start later */
+    if (engine.proc) {
+      try {
+        await engine.setMcps(list);
+      } catch {
+        /* JS ajanları yine de çalışır */
+      }
     }
     return next;
   });
   ipcMain.handle("chat-pet", async (_e, payload) => {
-    await bootEngine();
     if (payload?.reset) {
-      await engine.reset();
+      if (engine.proc) {
+        try {
+          await engine.reset();
+        } catch {
+          /* ignore */
+        }
+      }
       return "";
     }
     const cfg = loadConfig();
-    return engine.chat({
-      species: payload?.species,
-      name: payload?.name,
-      text: payload?.text,
-      lang: payload?.lang || "tr",
-      mcps: cfg.mcps ?? [],
-    });
+    const text = String(payload?.text || "");
+    const species = payload?.species || cfg.species || "cat";
+    const name = payload?.name || NAMES[species] || "Pet";
+    const enabled = new Set(cfg.mcps ?? []);
+    let toolText = "";
+    const intent = parseIntent(text);
+    if (intent && enabled.has(intent.server)) {
+      try {
+        toolText = await runMcp(intent);
+      } catch (err) {
+        toolText = err instanceof Error ? err.message : "ajan çalışmadı";
+      }
+    } else if (intent) {
+      toolText = `${intent.server} ajanı yüklü değil. ${osTitle()} ajanlarını menüden aç.`;
+    }
+    const bin = enginePath(resourceDir());
+    if (engine.proc && fs.existsSync(bin)) {
+      try {
+        const llm = await engine.chat({
+          species,
+          name,
+          text,
+          lang: payload?.lang || "tr",
+          mcps: cfg.mcps ?? [],
+        });
+        if (String(llm || "").trim()) return String(llm).trim();
+      } catch {
+        /* JS cevabı kullan */
+      }
+    }
+    return petReply(species, name, text, toolText);
   });
   ipcMain.on("pet-say", (_e, payload) => {
     overlay?.webContents.send("pet-say", payload);
@@ -492,6 +495,7 @@ app.whenReady().then(async () => {
   if (!cfg.onboarded) addPicker();
   else {
     addOverlay();
+    if (!cfg.mcpAsked) addPicker("mcp");
   }
 });
 
@@ -508,5 +512,8 @@ app.on("window-all-closed", () => {
 app.on("activate", () => {
   const cfg = loadConfig();
   if (!cfg.onboarded) addPicker();
-  else if (!overlay) addOverlay();
+  else {
+    if (!overlay) addOverlay();
+    if (!cfg.mcpAsked) addPicker("mcp");
+  }
 });

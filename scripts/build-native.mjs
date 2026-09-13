@@ -14,14 +14,27 @@ const crate = path.join(root, "native", "engine");
 const exe = process.platform === "win32" ? "digipet-engine.exe" : "digipet-engine";
 const dest = path.join(root, "native", exe);
 
-execFileSync(cargoBin, ["build", "--release"], { cwd: crate, stdio: "inherit" });
-const built = path.join(crate, "target", "release", exe);
-if (!fs.existsSync(built)) {
-  throw new Error("cargo did not produce " + exe);
+function cargoOk() {
+  try {
+    execFileSync(cargoBin, ["--version"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
 }
-fs.copyFileSync(built, dest);
-if (process.platform !== "win32") fs.chmodSync(dest, 0o755);
-console.log("built", dest);
+
+if (cargoOk()) {
+  execFileSync(cargoBin, ["build", "--release"], { cwd: crate, stdio: "inherit" });
+  const built = path.join(crate, "target", "release", exe);
+  if (!fs.existsSync(built)) {
+    throw new Error("cargo did not produce " + exe);
+  }
+  fs.copyFileSync(built, dest);
+  if (process.platform !== "win32") fs.chmodSync(dest, 0o755);
+  console.log("built", dest);
+} else {
+  console.warn("cargo yok; Rust sidecar atlandı, sohbet JS ajanlarıyla paketleniyor.");
+}
 
 if (process.platform === "darwin") {
   const bin = path.join(root, "native", "list-windows");

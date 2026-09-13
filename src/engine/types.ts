@@ -115,7 +115,8 @@ export interface PetSpeech {
 export interface DigiPetBridge {
   desktop: boolean;
   getConfig(): Promise<AppConfig>;
-  completeOnboarding(species: SpeciesId): Promise<AppConfig>;
+  completeOnboarding(payload: SpeciesId | { species?: SpeciesId; mcps?: string[] }): Promise<AppConfig>;
+  onOnboardingStep?(cb: (step: string) => void): () => void;
   setSpecies(species: SpeciesId): Promise<void>;
   setVolume(volume: number): Promise<void>;
   openPicker(): Promise<void>;
@@ -123,7 +124,7 @@ export interface DigiPetBridge {
   updateHitRegions(regions: Rect[]): void;
   openChat(): Promise<void>;
   closeChat(): Promise<void>;
-  mcpCatalog(): Promise<{ items: McpItem[]; asked: boolean; enabled: string[] }>;
+  mcpCatalog(): Promise<{ items: McpItem[]; asked: boolean; enabled: string[]; os?: string }>;
   setMcps(mcps: string[]): Promise<AppConfig>;
   chatPet(payload: { species: SpeciesId; name: string; text: string; lang?: string; reset?: boolean }): Promise<string>;
   onEngineProgress(cb: (pct: number, label: string) => void): () => void;

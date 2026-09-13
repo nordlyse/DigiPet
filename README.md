@@ -84,7 +84,7 @@ npm run dist
 Bu sıra şunu yapar:
 
 1. TypeScript kontrolü + Vite production build (`dist/`)
-2. Rust `digipet-engine` derlemesi (`cargo`) + macOS’ta `native/list-windows` (`clang`)
+2. macOS’ta `native/list-windows` (`clang`); `cargo` varsa Rust `digipet-engine`
 3. Windows ICO üretimi (`sips` + `scripts/make-ico.mjs`)
 4. electron-builder ile macOS, Linux ve Windows paketleri (`release/`)
 
@@ -109,11 +109,11 @@ Ayar dosyası: `electron-builder.yml`. Çıktı klasörü: `release/`.
 
 `npm install` şunları `node_modules` içine indirir; ayrıca sisteme kurmana gerek yok: Electron 33, electron-builder 25, Vite 6, TypeScript, Three.js.
 
-**Rust motoru (sohbet + MCP):**
+**Rust sidecar (isteğe bağlı):**
 
 | Yazılım | Neden |
 |---|---|
-| [Rust](https://rustup.rs/) (stable) | Hugging Face Candle sidecar (`native/engine`) |
+| [Rust](https://rustup.rs/) (stable) | Hugging Face Candle sidecar (`native/engine`). Yoksa sohbet JS ajanlarıyla paketlenir. |
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -154,14 +154,14 @@ xcode-select --install
 - `npm run dist` bulunduğun OS’tan **üç** platformu da hedefleyebilir (electron-builder çapraz derleme). NSIS için Mac’te Wine otomatik iner.
 - Pencere tırmanan native yardımcı yalnızca **macOS** paketinin `Contents/Resources/native/list-windows` içine konur.
 
-## Sohbet (yerel AI + MCP)
+## Sohbet (OS ajanları)
 
-Pet’e **çift tık** veya tepsi menüsünden **Pet ile konuş**. İlk açılışta MIT / Apache-2.0 yardımcıları (hava, mail, takvim, uygulama, mesaj) için bir onay listesi çıkar; işaretlediklerin yüklenir. Tepside **Yardımcılar (MCP)…** ile tekrar açılır.
+Pet’e **çift tık** veya tepsi menüsünden **Pet ile konuş**. İlk kurulumda hayvan seçiminden sonra bu işletim sistemine özel yardımcıları (hava, mail, takvim, uygulama, mesaj) işaretlersin. Tepside **macOS / Windows / Linux ajanları…** ile sonra da değiştirebilirsin.
 
-- Motor: [Candle](https://github.com/huggingface/candle) (Apache-2.0 / MIT) — saf Rust sidecar `digipet-engine`
-- Model: [SmolLM2-135M-Instruct Q4_K_M](https://huggingface.co/unsloth/SmolLM2-135M-Instruct-GGUF) (Apache-2.0, ~105 MB)
-- Araçlar: süreç içi MCP (Open-Meteo hava; platform mail / takvim / uygulama / mesaj). Spring AI yok.
-- İlk mesajda model Hugging Face’ten bir kez iner, sonra çevrimdışı çalışır
+Sohbet Rust olmadan da cevap verir. `digipet-engine` (Candle + SmolLM2) pakette varsa isteğe bağlı kullanılır.
+
+- Araçlar: Electron içindeki MCP ajanları (Open-Meteo hava; platform mail / takvim / uygulama / mesaj). Spring AI yok.
+- İsteğe bağlı motor: [Candle](https://github.com/huggingface/candle) (Apache-2.0 / MIT) sidecar ve [SmolLM2-135M-Instruct Q4_K_M](https://huggingface.co/unsloth/SmolLM2-135M-Instruct-GGUF) (Apache-2.0)
 
 Aynı GGUF Raspberry Pi sınıfında da koşabilir. ESP32’de LLM çalışmaz.
 

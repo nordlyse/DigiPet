@@ -3,7 +3,12 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("digipet", {
   desktop: true,
   getConfig: () => ipcRenderer.invoke("get-config"),
-  completeOnboarding: (species) => ipcRenderer.invoke("complete-onboarding", species),
+  completeOnboarding: (payload) => ipcRenderer.invoke("complete-onboarding", payload),
+  onOnboardingStep: (cb) => {
+    const fn = (_e, step) => cb(step);
+    ipcRenderer.on("onboarding-step", fn);
+    return () => ipcRenderer.removeListener("onboarding-step", fn);
+  },
   setSpecies: (species) => ipcRenderer.invoke("set-species", species),
   setVolume: (volume) => ipcRenderer.invoke("set-volume", volume),
   openPicker: () => ipcRenderer.invoke("open-picker"),

@@ -103,11 +103,11 @@ form.addEventListener("submit", async (e) => {
     });
     add("pet", reply);
     window.digipet?.petSay(reply, text);
-    status.textContent = "Candle · SmolLM2-135M · MCP";
+    status.textContent = "Hazır";
   } catch (err) {
     const message = err instanceof Error ? err.message : "Sohbet başarısız";
     status.textContent = message;
-    add("pet", "Motor hazır değil. rustup kurup `npm run build:native` çalıştır.");
+    add("pet", message);
   } finally {
     send.disabled = false;
     input.focus();

@@ -3,7 +3,7 @@ import { addPetModel } from "./pets/addPet";
 import { SPECIES, SPECIES_ORDER } from "./pets/species";
 import type { McpItem, SpeciesId } from "./engine/types";
 import { agentLicenseSummary } from "./licenses";
-import { petName, setLang, t } from "../electron/i18n.mjs";
+import { lang, petName, setLang, t } from "../electron/i18n.mjs";
 
 const preview = document.querySelector<HTMLCanvasElement>("#preview")!;
 const stepPet = document.querySelector<HTMLElement>("#step-pet")!;
@@ -36,6 +36,10 @@ scene.add(rim);
 let model = addPetModel(selected);
 scene.add(model.root);
 
+const bootLang = new URLSearchParams(location.search).get("lang");
+if (bootLang) setLang(bootLang);
+document.documentElement.lang = lang();
+
 function resize() {
   const w = preview.clientWidth || 280;
   const h = preview.clientHeight || 280;
@@ -62,15 +66,19 @@ function show(id: SpeciesId) {
 }
 
 const grid = document.querySelector("#grid")!;
-for (const id of SPECIES_ORDER) {
-  const s = SPECIES[id];
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "pet-card";
-  btn.dataset.id = id;
-  btn.innerHTML = `<span class="emoji">${s.emoji}</span><span class="name">${petName(id)}</span><span class="sound">“${s.sound}”</span><span class="move">${s.climb === "fly" ? t("fly") : t("jump")}</span>`;
-  btn.addEventListener("click", () => show(id));
-  grid.append(btn);
+
+function fillGrid() {
+  grid.innerHTML = "";
+  for (const id of SPECIES_ORDER) {
+    const s = SPECIES[id];
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "pet-card";
+    btn.dataset.id = id;
+    btn.innerHTML = `<span class="emoji">${s.emoji}</span><span class="name">${petName(id)}</span><span class="sound">“${s.sound}”</span><span class="move">${s.climb === "fly" ? t("fly") : t("jump")}</span>`;
+    btn.addEventListener("click", () => show(id));
+    grid.append(btn);
+  }
 }
 
 let tick = 0;
@@ -84,7 +92,6 @@ const loop = () => {
   renderer.render(scene, camera);
 };
 loop();
-show("cat");
 
 function selectedMcps() {
   return [...mcpList.querySelectorAll<HTMLInputElement>("input:checked")].map((el) => el.value);
@@ -154,10 +161,24 @@ document.querySelector("#next")!.addEventListener("click", async () => {
 document.querySelector("#mcp-back")!.addEventListener("click", () => showPet());
 mcpList.addEventListener("change", () => refreshLicense());
 document.querySelector("#go")!.addEventListener("click", async () => {
-  await finish(selectedMcps());
+  const btn = document.querySelector<HTMLButtonElement>("#go")!;
+  btn.disabled = true;
+  btn.textContent = t("looking");
+  try {
+    await finish(selectedMcps());
+  } finally {
+    btn.disabled = false;
+    btn.textContent = `${t("startWith")} ${petName(selected)}`;
+  }
 });
 document.querySelector("#mcp-skip")!.addEventListener("click", async () => {
-  await finish([]);
+  const btn = document.querySelector<HTMLButtonElement>("#mcp-skip")!;
+  btn.disabled = true;
+  try {
+    await finish([]);
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 window.digipet?.onOnboardingStep?.((step) => {
@@ -165,26 +186,26 @@ window.digipet?.onOnboardingStep?.((step) => {
   else showPet();
 });
 
-void window.digipet?.getConfig().then((cfg) => {
-  if (cfg.lang) setLang(cfg.lang);
-  document.documentElement.lang = cfg.lang || "en";
-  document.querySelector("#step-pet header p")!.textContent = t("setupLead");
+function applyCopy() {
+  document.documentElement.lang = lang();
+  document.title = t("setupTitle");
+  document.querySelector("#setup-title")!.textContent = t("setupTitle");
+  document.querySelector("#setup-lead")!.textContent = t("setupLead");
   document.querySelector("#mcp-back")!.textContent = t("back");
   document.querySelector("#mcp-skip")!.textContent = t("skipHelpers");
-  askedAlready = cfg.mcpAsked === true;
-  const grid = document.querySelector("#grid")!;
-  grid.querySelectorAll(".pet-card .name").forEach((el, i) => {
-    const id = SPECIES_ORDER[i];
-    if (id) el.textContent = petName(id);
-  });
-  grid.querySelectorAll(".pet-card .move").forEach((el, i) => {
-    const id = SPECIES_ORDER[i];
-    if (id) el.textContent = SPECIES[id].climb === "fly" ? t("fly") : t("jump");
-  });
+}
+
+void window.digipet?.getConfig().then((cfg) => {
+  if (cfg.lang) setLang(cfg.lang);
+  applyCopy();
+  askedAlready = cfg.needsSetup === false;
+  fillGrid();
   if (cfg.species) show(cfg.species);
   else show(selected);
-  if (new URLSearchParams(location.search).get("step") === "mcp" || (cfg.onboarded && !cfg.mcpAsked)) {
+  if (new URLSearchParams(location.search).get("step") === "mcp") {
     mcpOnly = true;
     showMcp();
+  } else if (cfg.needsSetup !== false) {
+    showPet();
   }
 });

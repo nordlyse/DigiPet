@@ -4,6 +4,10 @@ import type { McpItem, SpeciesId } from "./engine/types";
 import { agentLicenseSummary } from "./licenses";
 import { lang, petName, setLang, t } from "../electron/i18n.mjs";
 
+const qLang = new URLSearchParams(location.search).get("lang");
+if (qLang) setLang(qLang);
+document.documentElement.lang = lang();
+
 const log = document.querySelector("#log")!;
 const form = document.querySelector<HTMLFormElement>("#form")!;
 const input = document.querySelector<HTMLTextAreaElement>("#input")!;
@@ -29,6 +33,8 @@ function applyCopy() {
   mcpSave.textContent = t("mcpSave");
   mcpSkip.textContent = t("mcpSkip");
 }
+
+applyCopy();
 
 function add(role: "user" | "pet", text: string) {
   const el = document.createElement("div");

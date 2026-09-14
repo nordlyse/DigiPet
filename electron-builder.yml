@@ -15,6 +15,12 @@ files:
   - "!**/node_modules/**"
 asarUnpack:
   - "**/*.wasm"
+electronLanguages:
+  - en
+  - tr
+  - nb
+  - nn
+  - no
 extraResources:
   - from: native
     to: native
@@ -34,6 +40,13 @@ mac:
     NSCalendarsUsageDescription: DigiPet reads and adds calendar events when you ask in chat.
     NSCalendarsFullAccessUsageDescription: DigiPet reads upcoming meetings and adds events you ask for in chat.
     NSAppleEventsUsageDescription: DigiPet talks to Mail and Messages when those helpers are on.
+    CFBundleDevelopmentRegion: en
+    CFBundleLocalizations:
+      - en
+      - tr
+      - nb
+      - nn
+      - no
   target:
     - dmg
     - zip
@@ -60,6 +73,10 @@ nsis:
   installerIcon: build/icon.ico
   uninstallerIcon: build/icon.ico
   deleteAppDataOnUninstall: false
+  installerLanguages:
+    - en_US
+    - tr_TR
+    - nb_NO
 dmg:
   icon: build/icon.png
   artifactName: "${productName}-${version}-mac-${arch}.${ext}"

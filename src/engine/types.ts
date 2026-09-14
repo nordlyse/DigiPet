@@ -97,6 +97,8 @@ export interface AppConfig {
   volume: number;
   openAtLogin: boolean;
   mcpAsked?: boolean;
+  setupFlow?: number;
+  needsSetup?: boolean;
   mcps?: string[];
   lang?: string;
 }

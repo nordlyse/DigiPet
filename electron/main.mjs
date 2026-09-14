@@ -5,12 +5,13 @@ import { spawn, execFileSync } from "node:child_process";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 import { EngineHost, enginePath } from "./engine-host.mjs";
-import { mcpCatalog, osTitle, parseIntent, petReply, resetChatMemory, runMcp } from "./mcp-tools.mjs";
+import { mcpCatalog, osTitle, parseIntent, petReply, primeHelpers, resetChatMemory, runMcp } from "./mcp-tools.mjs";
 import { lang, petName, setLang, t } from "./i18n.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEV_URL = process.env.DIGITPET_URL || "http://localhost:5173";
 const SPECIES = ["cat", "dog", "rabbit", "turtle", "elephant", "bird", "eagle", "ghost"];
+const SETUP_FLOW = 2;
 
 let overlay = null;
 let picker = null;
@@ -96,11 +97,12 @@ function loadConfig() {
       volume: 0.55,
       openAtLogin: true,
       mcpAsked: false,
+      setupFlow: 0,
       mcps: [],
       ...JSON.parse(fs.readFileSync(configPath(), "utf8")),
     };
   } catch {
-    return { species: "cat", onboarded: false, volume: 0.55, openAtLogin: true, mcpAsked: false, mcps: [] };
+    return { species: "cat", onboarded: false, volume: 0.55, openAtLogin: true, mcpAsked: false, setupFlow: 0, mcps: [] };
   }
 }
 
@@ -118,6 +120,26 @@ async function waitForVite(url) {
       await new Promise((r) => setTimeout(r, 200));
     }
   }
+}
+
+function osLocale() {
+  try {
+    const preferred = app.getPreferredSystemLanguages?.();
+    if (Array.isArray(preferred) && preferred[0]) return preferred[0];
+  } catch {
+    /* ignore */
+  }
+  try {
+    const system = app.getSystemLocale?.();
+    if (system) return system;
+  } catch {
+    /* ignore */
+  }
+  return app.getLocale();
+}
+
+function needsSetup(cfg) {
+  return cfg.onboarded !== true || cfg.mcpAsked !== true || Number(cfg.setupFlow) !== SETUP_FLOW;
 }
 
 function loadPage(win, file) {
@@ -167,6 +189,7 @@ function ensureHelper() {
 
 function startWindowWatcher() {
   if (process.platform !== "darwin") return;
+  if (helper) return;
   const bin = ensureHelper();
   if (!bin) return;
   const proc = spawn(bin, ["--exclude-pid", String(process.pid)]);
@@ -181,6 +204,7 @@ function startWindowWatcher() {
     }
   });
   proc.on("exit", () => {
+    helper = null;
     if (!quitting) setTimeout(startWindowWatcher, 800);
   });
 }
@@ -196,6 +220,8 @@ function pushWindows() {
 }
 
 function addOverlay() {
+  startWindowWatcher();
+  if (overlay) return;
   const display = screen.getPrimaryDisplay();
   overlay = new BrowserWindow({
     x: display.bounds.x,
@@ -273,11 +299,14 @@ function addPicker(step) {
   const open = async () => {
     if (!app.isPackaged) {
       const url = new URL(`${DEV_URL}/onboarding.html`);
+      url.searchParams.set("lang", lang());
       if (step) url.searchParams.set("step", step);
       await picker.loadURL(url.toString());
     } else {
       await picker.loadFile(path.join(__dirname, "..", "dist", "onboarding.html"), {
-        query: step ? { step } : {},
+        query: step ? { lang: lang(), step } : { lang: lang() },
+      });
+    }
       });
     }
     picker.show();
@@ -324,11 +353,12 @@ function addChat(forceMcp = false) {
   const open = async () => {
     if (!app.isPackaged) {
       const url = new URL(`${DEV_URL}/chat.html`);
+      url.searchParams.set("lang", lang());
       if (forceMcp) url.searchParams.set("mcp", "1");
       await chat.loadURL(url.toString());
     } else {
       await chat.loadFile(path.join(__dirname, "..", "dist", "chat.html"), {
-        query: forceMcp ? { mcp: "1" } : {},
+        query: forceMcp ? { lang: lang(), mcp: "1" } : { lang: lang() },
       });
     }
     chat.show();
@@ -435,8 +465,11 @@ function fallbackCatalog() {
 }
 
 function registerIpc() {
-  ipcMain.handle("get-config", () => ({ ...loadConfig(), lang: lang() }));
-  ipcMain.handle("complete-onboarding", (_e, payload) => {
+  ipcMain.handle("get-config", () => {
+    const cfg = loadConfig();
+    return { ...cfg, lang: lang(), needsSetup: needsSetup(cfg) };
+  });
+  ipcMain.handle("complete-onboarding", async (_e, payload) => {
     const prev = loadConfig();
     const species = (typeof payload === "string" ? payload : payload?.species) || prev.species;
     const mcps = Array.isArray(payload?.mcps) ? payload.mcps.filter((id) => typeof id === "string") : prev.mcps ?? [];
@@ -445,10 +478,18 @@ function registerIpc() {
       species,
       onboarded: true,
       mcpAsked: true,
+      setupFlow: SETUP_FLOW,
       mcps,
     };
     saveConfig(next);
     app.setLoginItemSettings({ openAtLogin: next.openAtLogin });
+    if (needsSetup(prev)) {
+      try {
+        await withOsDialogs(() => primeHelpers(mcps));
+      } catch {
+        /* still finish setup */
+      }
+    }
     if (!overlay) addOverlay();
     else overlay.webContents.send("species-changed", species);
     rebuildTray();
@@ -480,14 +521,19 @@ function registerIpc() {
   });
   ipcMain.handle("set-mcps", async (_e, mcps) => {
     const list = Array.isArray(mcps) ? mcps.filter((id) => typeof id === "string") : [];
-    const next = { ...loadConfig(), mcps: list, mcpAsked: true };
+    const next = { ...loadConfig(), mcps: list, mcpAsked: true, setupFlow: SETUP_FLOW };
     saveConfig(next);
     if (engine.proc) {
       try {
         await engine.setMcps(list);
       } catch {
-        /* JS ajanları yine de çalışır */
+        /* JS helpers still run */
       }
+    }
+    try {
+      await withOsDialogs(() => primeHelpers(list));
+    } catch {
+      /* OS dialog may have been dismissed */
     }
     return next;
   });
@@ -514,10 +560,10 @@ function registerIpc() {
       try {
         toolText = intent.server === "calendar" ? await withOsDialogs(() => runMcp(intent)) : await runMcp(intent);
       } catch (err) {
-        toolText = err instanceof Error ? err.message : "ajan çalışmadı";
+        toolText = err instanceof Error ? err.message : t("agentFailed");
       }
     } else if (intent) {
-      toolText = `${intent.server} ajanı yüklü değil. ${osTitle()} ajanlarını menüden aç.`;
+      toolText = `${intent.server} ${t("helperOff")} ${osTitle()}.`;
     }
     const bin = enginePath(resourceDir());
     if (engine.proc && fs.existsSync(bin)) {
@@ -526,7 +572,7 @@ function registerIpc() {
           species,
           name,
           text,
-          lang: payload?.lang || "tr",
+          lang: payload?.lang || lang(),
           mcps: cfg.mcps ?? [],
         });
         if (String(llm || "").trim()) return String(llm).trim();
@@ -549,20 +595,16 @@ function registerIpc() {
 }
 
 app.whenReady().then(async () => {
-  setLang(app.getLocale());
+  setLang(osLocale());
   if (!app.isPackaged) await waitForVite(DEV_URL);
   registerIpc();
   const cfg = loadConfig();
   app.setLoginItemSettings({ openAtLogin: cfg.openAtLogin });
   installAppMenu();
   rebuildTray();
-  startWindowWatcher();
   startHitPoll();
-  if (!cfg.onboarded) addPicker();
-  else {
-    addOverlay();
-    if (!cfg.mcpAsked) addPicker("mcp");
-  }
+  if (needsSetup(cfg)) addPicker();
+  else addOverlay();
 });
 
 app.on("before-quit", () => {
@@ -577,9 +619,6 @@ app.on("window-all-closed", () => {
 
 app.on("activate", () => {
   const cfg = loadConfig();
-  if (!cfg.onboarded) addPicker();
-  else {
-    if (!overlay) addOverlay();
-    if (!cfg.mcpAsked) addPicker("mcp");
-  }
+  if (needsSetup(cfg)) addPicker();
+  else if (!overlay) addOverlay();
 });

@@ -9,29 +9,29 @@
   <body>
     <main id="step-pet">
       <header>
-        <h1>DigiPet</h1>
-        <p>Pick the animal that will live on your desktop. You can change it later from the menu bar 🐾. The pet climbs the real windows you open.</p>
+        <h1 id="setup-title">DigiPet</h1>
+        <p id="setup-lead">Pick the animal that will live on your desktop. You can change it later from the menu bar 🐾. The pet climbs the real windows you open.</p>
       </header>
       <section class="stage">
         <canvas id="preview"></canvas>
         <p id="blurb"></p>
       </section>
       <div id="grid" class="pet-grid"></div>
-      <button type="button" id="next">Devam — ajanları seç</button>
+      <button type="button" id="next">Continue — pick helpers</button>
     </main>
     <main id="step-mcp" hidden>
       <header>
-        <h1 id="mcp-title">Ajanlar</h1>
+        <h1 id="mcp-title">helpers</h1>
         <p id="mcp-lead">
-          Bu işletim sistemine özel yardımcıları seç. Pet sohbette hava, mail, takvim, uygulama ve mesaj için yalnızca işaretlediklerini kullanır.
+          Tick helpers for this operating system. The pet only uses the ones you mark (weather, mail, calendar, apps, messages). If you mark more than one, every license applies at once. When you continue, the OS may ask for access for the helpers you ticked.
         </p>
       </header>
       <div id="mcp-list"></div>
       <aside id="license-note" class="license-note"></aside>
       <div class="mcp-actions">
-        <button type="button" id="mcp-back" class="ghost">Geri</button>
-        <button type="button" id="mcp-skip" class="ghost">Ajan yükleme</button>
-        <button type="button" id="go">Seçilenlerle başla</button>
+        <button type="button" id="mcp-back" class="ghost">Back</button>
+        <button type="button" id="mcp-skip" class="ghost">Skip helpers</button>
+        <button type="button" id="go">Start with selected</button>
       </div>
     </main>
     <script type="module" src="/src/onboarding.ts"></script>

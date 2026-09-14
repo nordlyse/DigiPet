@@ -29,59 +29,75 @@ export function mcpCatalog() {
       id: "weather",
       title: t("weather"),
       description: t("weatherDesc"),
-      license: "MIT yardımcı · Open-Meteo veri CC BY 4.0",
+      license: t("weatherLic"),
       platforms: ["darwin", "win32", "linux"],
     },
     {
       id: "mail",
-      title: win ? "Mail (Outlook)" : mac ? "Mail (Apple Mail)" : "Mail (xdg-email)",
-      description: mac
-        ? "Mac Mail gelen kutusu oku, gönder, sil."
-        : win
-          ? "Outlook gelen kutusu oku, gönder, sil."
-          : "Linux’ta gönderim xdg-email ile; okuma sınırlı.",
-      license: mac
-        ? "MIT yardımcı · Apple Mail kendi koşulları"
-        : win
-          ? "MIT yardımcı · Outlook kendi koşulları"
-          : "MIT yardımcı · xdg-email / posta uygulaması kendi koşulları",
+      title: win ? t("mailOutlook") : mac ? t("mailApple") : t("mailXdg"),
+      description: mac ? t("mailDescMac") : win ? t("mailDescWin") : t("mailDescLinux"),
+      license: mac ? t("mailLicMac") : win ? t("mailLicWin") : t("mailLicLinux"),
       platforms: ["darwin", "win32", "linux"],
     },
     {
       id: "calendar",
-      title: win ? "Takvim (Outlook)" : mac ? "Takvim (Calendar)" : "Takvim (khal)",
+      title: win ? t("calOutlook") : mac ? t("calApple") : t("calKhal"),
       description: t("calendarDesc"),
-      license: mac
-        ? "MIT yardımcı · EventKit / Apple Calendar kendi koşulları"
-        : win
-          ? "MIT yardımcı · Outlook kendi koşulları"
-          : "MIT yardımcı · khal / takvim uygulaması kendi koşulları",
+      license: mac ? t("calLicMac") : win ? t("calLicWin") : t("calLicLinux"),
       platforms: ["darwin", "win32", "linux"],
     },
     {
       id: "apps",
-      title: "Uygulamalar",
-      description: mac
-        ? "Safari, Mail, Finder gibi uygulamaları aç / kapat."
-        : win
-          ? "Notepad, Outlook gibi uygulamaları aç / kapat."
-          : "xdg-open / gtk-launch ile uygulama aç / kapat.",
-      license: "MIT yardımcı · açılan uygulamalar kendi koşulları",
+      title: t("appsTitle"),
+      description: mac ? t("appsDescMac") : win ? t("appsDescWin") : t("appsDescLinux"),
+      license: t("appsLic"),
       platforms: ["darwin", "win32", "linux"],
     },
     {
       id: "messages",
-      title: mac ? "Mesajlar (Messages)" : "Mesajlar",
-      description: mac
-        ? "iMessage gönder / silmeyi dene."
-        : "Bu işletim sisteminde iMessage yok; SMS/mailto denenir.",
-      license: mac
-        ? "MIT yardımcı · Apple Messages kendi koşulları"
-        : "MIT yardımcı · mesaj / SMS uygulaması kendi koşulları",
+      title: mac ? t("msgApple") : t("msgOther"),
+      description: mac ? t("msgDescMac") : t("msgDescOther"),
+      license: mac ? t("msgLicMac") : t("msgLicOther"),
       platforms: ["darwin", "win32", "linux"],
     },
   ];
   return items.filter((item) => item.platforms.includes(os));
+}
+
+export async function primeHelpers(ids) {
+  const set = new Set(ids || []);
+  const jobs = [];
+  if (set.has("calendar")) jobs.push(primeCalendar());
+  if (set.has("mail")) jobs.push(primeMail());
+  if (set.has("messages")) jobs.push(primeMessages());
+  await Promise.allSettled(jobs);
+}
+
+async function primeCalendar() {
+  if (osKey() !== "darwin") return;
+  try {
+    await runCalendar(["list"]);
+  } catch {
+    /* OS dialog may have been dismissed */
+  }
+}
+
+async function primeMail() {
+  if (osKey() !== "darwin") return;
+  try {
+    await osascript('tell application "Mail" to get name', 25000);
+  } catch {
+    /* OS dialog may have been dismissed */
+  }
+}
+
+async function primeMessages() {
+  if (osKey() !== "darwin") return;
+  try {
+    await osascript('tell application "Messages" to get name', 25000);
+  } catch {
+    /* OS dialog may have been dismissed */
+  }
 }
 
 const SOUND = {

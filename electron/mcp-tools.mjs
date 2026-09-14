@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { lang, t } from "./i18n.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -22,8 +23,8 @@ export function mcpCatalog() {
   const items = [
     {
       id: "weather",
-      title: "Hava durumu",
-      description: "Open-Meteo ile şehir hava raporu (anahtar gerekmez).",
+      title: t("weather"),
+      description: t("weatherDesc"),
       license: "MIT yardımcı · Open-Meteo veri CC BY 4.0",
       platforms: ["darwin", "win32", "linux"],
     },
@@ -45,7 +46,7 @@ export function mcpCatalog() {
     {
       id: "calendar",
       title: win ? "Takvim (Outlook)" : mac ? "Takvim (Calendar)" : "Takvim (khal)",
-      description: "Önümüzdeki 24 saatte toplantı / etkinlik var mı bak.",
+      description: t("calendarDesc"),
       license: mac
         ? "MIT yardımcı · Apple Calendar kendi koşulları"
         : win
@@ -90,32 +91,63 @@ const SOUND = {
   rabbit: "Piy piy",
 };
 
+const memory = { city: "", pendingWeather: false };
+
+export function resetChatMemory() {
+  memory.city = "";
+  memory.pendingWeather = false;
+}
+
 export function parseIntent(text) {
-  const t = (text || "").toLowerCase();
-  if (!t.trim()) return null;
-  if (has(t, ["mail", "e-posta", "eposta"]) && has(t, ["sil", "delete"])) {
-    return { server: "mail", tool: "delete", args: { query: after(t, ["sil", "delete"]) } };
+  const raw = String(text || "").trim();
+  const lower = raw.toLowerCase();
+  if (!raw) return null;
+  if (has(lower, ["mail", "e-posta", "eposta"]) && has(lower, ["sil", "delete"])) {
+    return { server: "mail", tool: "delete", args: { query: after(lower, ["sil", "delete"]) } };
   }
-  if (has(t, ["mail", "e-posta", "eposta", "email"]) && has(t, ["gönder", "gonder", "send"])) {
+  if (has(lower, ["mail", "e-posta", "eposta", "email"]) && has(lower, ["gönder", "gonder", "send"])) {
     return { server: "mail", tool: "send", args: { to: emailOf(text) || "", subject: "DigiPet", body: text } };
   }
-  if (has(t, ["mesaj", "imessage", "sms"]) && has(t, ["sil", "delete"])) {
-    return { server: "messages", tool: "delete", args: { query: after(t, ["sil", "delete"]) } };
+  if (has(lower, ["mesaj", "imessage", "sms"]) && has(lower, ["sil", "delete"])) {
+    return { server: "messages", tool: "delete", args: { query: after(lower, ["sil", "delete"]) } };
   }
-  if (has(t, ["mesaj", "imessage", "sms"]) && has(t, ["gönder", "gonder", "yolla", "send", "mesaj at"])) {
-    return { server: "messages", tool: "send", args: { to: after(t, ["mesaj", "sms"]), body: text } };
+  if (has(lower, ["mesaj", "imessage", "sms"]) && has(lower, ["gönder", "gonder", "yolla", "send", "mesaj at"])) {
+    return { server: "messages", tool: "send", args: { to: after(lower, ["mesaj", "sms"]), body: text } };
   }
-  if (has(t, ["takvim", "toplantı", "toplanti", "meeting", "calendar", "randevu", "ajanda"])) {
+  if (has(lower, ["olay ekle", "add event", "add an event", "new event", "legg til hendelse"])) {
+    return {
+      server: "calendar",
+      tool: "insert",
+      args: { title: eventTitle(raw), days: daysOffset(lower) },
+    };
+  }
+  if (has(lower, ["takvim", "toplantı", "toplanti", "meeting", "calendar", "randevu", "ajanda", "kalender"])) {
+    if (has(lower, ["ekle", "add", "insert", "yeni", "new", "legg til", "legge til", "opprett"])) {
+      return {
+        server: "calendar",
+        tool: "insert",
+        args: { title: eventTitle(raw), days: daysOffset(lower) },
+      };
+    }
     return { server: "calendar", tool: "upcoming", args: {} };
   }
-  if (has(t, ["hava", "weather", "sıcaklık", "sicaklik", "yağmur", "yagmur", "forecast"])) {
-    return { server: "weather", tool: "current", args: { city: cityOf(text) } };
+  if (has(lower, ["hava", "weather", "sıcaklık", "sicaklik", "yağmur", "yagmur", "forecast", "vær", "vaer"])) {
+    const city = cityOf(raw) || memory.city;
+    memory.pendingWeather = !city;
+    if (city) memory.city = city;
+    return { server: "weather", tool: "current", args: { city } };
   }
-  const quit = appAfter(t, ["kapat ", "kapa ", "quit ", "close "], [" kapat", " kapa", " quit", " close"]);
+  if (memory.pendingWeather && looksLikePlace(raw)) {
+    const city = cityOf(raw) || raw;
+    memory.city = city;
+    memory.pendingWeather = false;
+    return { server: "weather", tool: "current", args: { city } };
+  }
+  const quit = appAfter(lower, ["kapat ", "kapa ", "quit ", "close "], [" kapat", " kapa", " quit", " close"]);
   if (quit) return { server: "apps", tool: "quit", args: { app: quit } };
-  const open = appAfter(t, ["aç ", "ac ", "open "], [" aç", " ac", " open"]);
+  const open = appAfter(lower, ["aç ", "ac ", "open "], [" aç", " ac", " open"]);
   if (open) return { server: "apps", tool: "open", args: { app: open } };
-  if (has(t, ["mail", "e-posta", "eposta", "inbox", "gelen kutusu"])) {
+  if (has(lower, ["mail", "e-posta", "eposta", "inbox", "gelen kutusu"])) {
     return { server: "mail", tool: "list", args: {} };
   }
   return null;
@@ -125,10 +157,11 @@ export async function runMcp(intent) {
   const { server, tool, args } = intent;
   if (server === "weather" && tool === "current") return weather(args.city);
   if (server === "mail") return mail(tool, args);
+  if (server === "calendar" && tool === "insert") return calendarInsert(args);
   if (server === "calendar") return calendar();
   if (server === "apps") return apps(tool, args.app);
   if (server === "messages") return messages(tool, args);
-  throw new Error("bilinmeyen ajan");
+  throw new Error(t("unknownAgent"));
 }
 
 export function petReply(species, name, userText, toolText) {
@@ -136,7 +169,7 @@ export function petReply(species, name, userText, toolText) {
   if (toolText) return `${sound}! ${toolText}`.slice(0, 500);
   const q = (userText || "").trim();
   if (!q) return `${sound}!`;
-  return `${sound}! ${name} dinledi: “${q.slice(0, 120)}”. Hava, mail, takvim veya uygulama sor; seçtiğin ajanlarla bakabilirim.`.slice(0, 500);
+  return `${sound}! ${name} ${t("listen")} ${t("askHelpers")}`.slice(0, 500);
 }
 
 function has(t, words) {
@@ -157,26 +190,86 @@ function emailOf(text) {
 }
 
 function cityOf(text) {
-  const cities = [
-    "istanbul",
-    "ankara",
-    "izmir",
-    "bursa",
-    "antalya",
-    "adana",
-    "berlin",
-    "paris",
-    "london",
-    "tokyo",
-  ];
-  const lower = text.toLowerCase();
-  const hit = cities.find((c) => lower.includes(c));
-  if (hit) return hit;
-  const tok = text
-    .split(/\s+/)
-    .reverse()
-    .find((w) => /^[A-ZÇĞİÖŞÜ]/.test(w) && w.length > 2);
-  return (tok || "").replace(/[^A-Za-zÇĞİÖŞÜçğıöşü-]/g, "");
+  const stop = new Set([
+    "yarin",
+    "yarın",
+    "tomorrow",
+    "bugun",
+    "bugün",
+    "today",
+    "hava",
+    "weather",
+    "nasil",
+    "nasıl",
+    "how",
+    "the",
+    "in",
+    "at",
+    "ta",
+    "te",
+    "da",
+    "de",
+    "dan",
+    "den",
+    "for",
+    "a",
+    "an",
+    "is",
+    "what",
+    "wie",
+    "morgen",
+    "vær",
+    "vaer",
+    "i",
+    "og",
+    "på",
+    "pa",
+    "will",
+    "be",
+    "like",
+    "olacak",
+    "olur",
+    "nedir",
+    "icin",
+    "için",
+    "bir",
+    "the",
+    "city",
+    "sehir",
+    "şehir",
+    "by",
+  ]);
+  const cleaned = String(text || "")
+    .replace(/['’](ta|te|da|de|dan|den)\b/gi, "")
+    .replace(/[?¿!.,:;]/g, " ");
+  const toks = cleaned.split(/[^A-Za-zÀ-ÿÇĞİÖŞÜçğıöşü-]+/).filter(Boolean);
+  const places = toks.filter((w) => !stop.has(w.toLowerCase()) && w.length > 2);
+  return (places[places.length - 1] || places[0] || "").replace(/[^A-Za-zÀ-ÿÇĞİÖŞÜçğıöşü-]/g, "");
+}
+
+function looksLikePlace(text) {
+  const raw = String(text || "").trim();
+  if (!raw || raw.length > 48) return false;
+  if (/[?@]|https?:/i.test(raw)) return false;
+  const words = raw.split(/\s+/);
+  if (words.length > 4) return false;
+  return Boolean(cityOf(raw) || /^[\p{L}][\p{L}\s-]{1,40}$/u.test(raw));
+}
+
+function daysOffset(lower) {
+  if (has(lower, ["bugün", "bugun", "today", "i dag"])) return 0;
+  return 1;
+}
+
+function eventTitle(text) {
+  const s = String(text || "")
+    .replace(
+      /takvime|takvim|calendar|kalender|olay|event|hendelse|toplant[ıi]|meeting|møte|mote|ekle|add|insert|yeni|new|legg til|legge til|opprett|bir|an|a|the|en|et|to|into|onto|yar[ıi]n|tomorrow|bug[uü]n|today|i morgen|i dag/gi,
+      " ",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+  return (s || "DigiPet").slice(0, 80);
 }
 
 function appAfter(t, prefixes, suffixes) {
@@ -206,13 +299,28 @@ function quote(s) {
   return String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
-async function run(cmd, args) {
-  const { stdout, stderr } = await execFileAsync(cmd, args, { timeout: 12000, maxBuffer: 1024 * 1024 });
-  return String(stdout || stderr || "").trim();
+async function run(cmd, args, ms = 8000) {
+  try {
+    const { stdout, stderr } = await execFileAsync(cmd, args, {
+      timeout: ms,
+      maxBuffer: 1024 * 1024,
+      killSignal: "SIGKILL",
+    });
+    return String(stdout || stderr || "").trim();
+  } catch (err) {
+    const msg = String(err?.message || err);
+    if (err?.killed || /ETIMEDOUT|timed out/i.test(msg)) {
+      throw new Error(t("timeout"));
+    }
+    if (/-1743|-1728|not authorised|not authorized|osascript is not allowed/i.test(msg)) {
+      throw new Error(t("noPerm"));
+    }
+    throw err;
+  }
 }
 
-async function osascript(script) {
-  return run("osascript", ["-e", script]);
+async function osascript(script, ms = 8000) {
+  return run("osascript", ["-e", script], ms);
 }
 
 async function powershell(script) {
@@ -221,9 +329,9 @@ async function powershell(script) {
 
 async function weather(city) {
   const q = (city || "").trim();
-  if (!q) return "Hangi şehir? Örneğin: İstanbul hava nasıl?";
+  if (!q) return t("weatherNeedCity");
   const geoRes = await fetch(
-    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=tr`,
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=${lang() === "tr" ? "tr" : "en"}`,
   );
   const geo = await geoRes.json();
   const place = geo?.results?.[0];
@@ -300,14 +408,25 @@ async function calendar() {
   const plat = osKey();
   if (plat === "darwin") {
     return osascript(`tell application "Calendar"
-  set now to current date
-  set later to now + (24 * 60 * 60)
-  set n to 0
-  repeat with c in calendars
-    set n to n + (count of (every event of c whose start date ≥ now and start date < later))
-  end repeat
-  if n is 0 then return "önümüzdeki 24 saatte toplantı yok"
-  return (n as text) & " toplantı / etkinlik var (Calendar)."
+  with timeout of 6 seconds
+    set now to current date
+    set later to now + (24 * 60 * 60)
+    set n to 0
+    set shown to {}
+    repeat with c in calendars
+      try
+        set evs to (every event of c whose start date ≥ now and start date < later)
+        set n to n + (count of evs)
+        repeat with e in evs
+          if (count of shown) < 3 then set end of shown to (summary of e as text)
+        end repeat
+      end try
+      if (count of shown) ≥ 3 then exit repeat
+    end repeat
+    if n is 0 then return "${t("noEvents")}"
+    set bits to shown as text
+    return (n as text) & " ${t("eventsAre")} " & bits
+  end timeout
 end tell`);
   }
   if (plat === "win32") {
@@ -322,7 +441,51 @@ if ($n -eq 0) { "önümüzdeki 24 saatte toplantı yok" } else { "$n toplantı v
   try {
     return await run("khal", ["list", "today", "tomorrow"]);
   } catch {
-    return "Linux takvimi için khal yok.";
+    return t("noEvents");
+  }
+}
+
+async function calendarInsert(args) {
+  const title = sanitize(args.title) || "DigiPet";
+  const days = Number(args.days) === 0 ? 0 : 1;
+  const plat = osKey();
+  if (plat === "darwin") {
+    return osascript(
+      `tell application "Calendar"
+  with timeout of 12 seconds
+    set startDate to (current date) + (${days} * days)
+    set hours of startDate to 10
+    set minutes of startDate to 0
+    set seconds of startDate to 0
+    set endDate to startDate + (1 * hours)
+    set cal to missing value
+    try
+      set cal to first calendar whose writable is true
+    end try
+    if cal is missing value then set cal to first calendar
+    tell cal
+      make new event with properties {summary:"${quote(title)}", start date:startDate, end date:endDate}
+    end tell
+    return "${t("eventAdded")} ${quote(title)}"
+  end timeout
+end tell`,
+      15000,
+    );
+  }
+  if (plat === "win32") {
+    return powershell(`$ol = New-Object -ComObject Outlook.Application
+$m = $ol.CreateItem(1)
+$m.Subject = "${quote(title)}"
+$m.Start = (Get-Date).Date.AddDays(${days}).AddHours(10)
+$m.End = $m.Start.AddHours(1)
+$m.Save()
+"${t("eventAdded")} ${quote(title)}"`);
+  }
+  try {
+    await run("khal", ["new", days === 0 ? "today 10:00" : "tomorrow 10:00", title]);
+    return `${t("eventAdded")} ${title}`;
+  } catch {
+    throw new Error(t("noEvents"));
   }
 }
 

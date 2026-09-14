@@ -2,10 +2,11 @@ import { chatWithPet, resetChat } from "./ai/engine";
 import { SPECIES } from "./pets/species";
 import type { McpItem, SpeciesId } from "./engine/types";
 import { agentLicenseSummary } from "./licenses";
+import { lang, petName, setLang, t } from "../electron/i18n.mjs";
 
 const log = document.querySelector("#log")!;
-const form = document.querySelector("#form")!;
-const input = document.querySelector<HTMLInputElement>("#input")!;
+const form = document.querySelector<HTMLFormElement>("#form")!;
+const input = document.querySelector<HTMLTextAreaElement>("#input")!;
 const send = document.querySelector<HTMLButtonElement>("#send")!;
 const status = document.querySelector("#status")!;
 const title = document.querySelector("#title")!;
@@ -16,18 +17,55 @@ const mcpSave = document.querySelector<HTMLButtonElement>("#mcp-save")!;
 const mcpSkip = document.querySelector<HTMLButtonElement>("#mcp-skip")!;
 const mcpLicense = document.querySelector("#mcp-license")!;
 
+function applyCopy() {
+  document.documentElement.lang = lang();
+  document.querySelector("#meta")!.textContent = t("chatMeta");
+  document.querySelector("#mcp-heading")!.textContent = t("mcpHeading");
+  document.querySelector("#mcp-intro")!.textContent = t("mcpIntro");
+  status.textContent = t("chatStatus");
+  closeBtn.textContent = t("close");
+  send.textContent = t("send");
+  input.placeholder = t("placeholder");
+  mcpSave.textContent = t("mcpSave");
+  mcpSkip.textContent = t("mcpSkip");
+}
+
 function add(role: "user" | "pet", text: string) {
   const el = document.createElement("div");
   el.className = `msg ${role}`;
-  el.textContent = text;
+  const body = document.createElement("div");
+  body.textContent = text;
+  const copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.className = "copy";
+  copyBtn.textContent = t("copy");
+  copyBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = t("copied");
+      setTimeout(() => {
+        copyBtn.textContent = t("copy");
+      }, 1200);
+    } catch {
+      const range = document.createRange();
+      range.selectNodeContents(body);
+      const sel = getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      document.execCommand("copy");
+    }
+  });
+  el.append(body, copyBtn);
   log.append(el);
   log.scrollTop = log.scrollHeight;
 }
 
 async function species(): Promise<{ id: SpeciesId; name: string }> {
   const cfg = await window.digipet?.getConfig();
+  if (cfg?.lang) setLang(cfg.lang);
+  applyCopy();
   const id = (cfg?.species ?? "cat") as SpeciesId;
-  return { id, name: SPECIES[id].nameTr };
+  return { id, name: petName(id) };
 }
 
 let lastSpecies: SpeciesId | null = null;
@@ -74,9 +112,9 @@ mcpSave.addEventListener("click", async () => {
   try {
     await window.digipet?.setMcps(selectedMcps());
     mcpPanel.hidden = true;
-    status.textContent = "MCP araçları yüklendi";
+    status.textContent = t("mcpLoaded");
   } catch (err) {
-    status.textContent = err instanceof Error ? err.message : "MCP yüklenemedi";
+    status.textContent = err instanceof Error ? err.message : t("unknownAgent");
   } finally {
     mcpSave.disabled = false;
   }
@@ -96,6 +134,13 @@ void loadMcpPanel();
 window.digipet?.onShowMcp(() => void loadMcpPanel(true));
 mcpList.addEventListener("change", () => refreshLicense());
 
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    form.requestSubmit();
+  }
+});
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = input.value.trim();
@@ -113,9 +158,9 @@ form.addEventListener("submit", async (e) => {
     });
     add("pet", reply);
     window.digipet?.petSay(reply, text);
-    status.textContent = "Hazır";
+    status.textContent = t("ready");
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Sohbet başarısız";
+    const message = err instanceof Error ? err.message : t("unknownAgent");
     status.textContent = message;
     add("pet", message);
   } finally {

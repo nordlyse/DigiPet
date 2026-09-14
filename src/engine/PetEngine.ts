@@ -5,6 +5,7 @@ import { SPECIES } from "../pets/species";
 import { detectMood, moodSound, type Mood } from "../pets/mood";
 import { FLOOR, platformAt } from "./Platforms";
 import type { IdleAct, PetState, Platform, Rect, Species, SpeciesId } from "./types";
+import { petName } from "../../electron/i18n.mjs";
 
 export interface PetTarget {
   x: number;
@@ -66,7 +67,7 @@ export class PetActor {
     this.group.userData.petId = this.id;
     this.label = document.createElement("div");
     this.label.className = "pet-label";
-    this.label.textContent = `${this.species.emoji} ${this.species.nameTr}`;
+    this.label.textContent = `${this.species.emoji} ${petName(this.species.id)}`;
     this.bubble = document.createElement("div");
     this.bubble.className = "pet-bubble hidden";
     labelsRoot.append(this.label, this.bubble);

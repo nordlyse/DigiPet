@@ -1,5 +1,6 @@
 import { World } from "./engine/World";
 import type { SpeciesId } from "./engine/types";
+import { setLang } from "../electron/i18n.mjs";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#scene")!;
 const labels = document.querySelector<HTMLElement>("#labels")!;
@@ -9,8 +10,8 @@ if (!bridge) {
   document.body.classList.add("web-fallback");
   document.body.innerHTML = `
     <main class="fallback">
-      <h1>DigiPet masaüstünde yaşar</h1>
-      <p>Tarayıcıda açılmaz. Terminalde şunu çalıştır:</p>
+      <h1>DigiPet lives on the desktop</h1>
+      <p>It does not open in a browser. In a terminal run:</p>
       <code>npm run desktop</code>
     </main>
   `;
@@ -21,6 +22,10 @@ if (!bridge) {
 
   const boot = async () => {
     const cfg = await bridge.readyOverlay();
+    if (cfg.lang) {
+      setLang(cfg.lang);
+      document.documentElement.lang = cfg.lang;
+    }
     world.sounds.setVolume(cfg.volume);
     if (cfg.overlay && cfg.workArea) world.setDesktop([], cfg.workArea, cfg.overlay);
     world.spawn(cfg.species);

@@ -1,35 +1,34 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DigiPet sohbet</title>
+    <title>DigiPet chat</title>
     <link rel="stylesheet" href="/src/chat.css" />
   </head>
   <body>
     <header>
-      <strong id="title">Pet ile konuş</strong>
-      <span id="meta">Pet sohbet · OS ajanları</span>
-      <button type="button" id="close">Kapat</button>
+      <strong id="title">Talk to pet</strong>
+      <span id="meta">Pet chat · OS helpers</span>
+      <button type="button" id="close">Close</button>
     </header>
-    <p id="status">Pet, kurulumda seçtiğin ajanlarla cevap verir.</p>
+    <p id="status">The pet answers with the helpers you picked at setup.</p>
     <section id="mcp-panel" hidden>
-      <h2>Yardımcı araçlar (MCP)</h2>
-      <p>
-        Platformuna göre MIT / Apache-2.0 araçlar. İstediğine çarpı at, sonra yükle. Pet bunları sohbette çağırır
-        (hava, mail, takvim, uygulama, mesaj). Birden fazla işaretlersen her birinin lisansı ayrı ayrı geçerlidir.
+      <h2 id="mcp-heading">Helper tools (MCP)</h2>
+      <p id="mcp-intro">
+        MIT / Apache-2.0 tools for your platform. Tick what to load. If you mark more than one, each license applies on its own.
       </p>
       <div id="mcp-list"></div>
       <aside id="mcp-license" class="license-note"></aside>
       <div class="mcp-actions">
-        <button type="button" id="mcp-save">Seçilenleri yükle</button>
-        <button type="button" id="mcp-skip" class="ghost">Şimdilik geç</button>
+        <button type="button" id="mcp-save">Load selected</button>
+        <button type="button" id="mcp-skip" class="ghost">Skip for now</button>
       </div>
     </section>
     <div id="log"></div>
     <form id="form">
-      <input id="input" type="text" maxlength="240" placeholder="Bir şey söyle…" autocomplete="off" />
-      <button type="submit" id="send">Gönder</button>
+      <textarea id="input" rows="3" maxlength="240" placeholder="Say something…" autocomplete="off"></textarea>
+      <button type="submit" id="send">Send</button>
     </form>
     <script type="module" src="/src/chat.ts"></script>
   </body>

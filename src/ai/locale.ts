@@ -1,13 +1,16 @@
-/** UI language the app was shipped/loaded with (`<html lang>`). */
+/** UI language from `<html lang>` after the OS locale is applied. */
 export function appLanguage() {
-  const lang = (document.documentElement.lang || "tr").slice(0, 2).toLowerCase();
-  return lang || "tr";
+  const lang = (document.documentElement.lang || "en").slice(0, 2).toLowerCase();
+  return lang || "en";
 }
 
 export function languageName(lang = appLanguage()) {
   const names: Record<string, string> = {
     tr: "Türkçe",
     en: "English",
+    nb: "Norsk",
+    nn: "Norsk",
+    no: "Norsk",
     de: "Deutsch",
     fr: "Français",
     es: "Español",
@@ -20,7 +23,7 @@ export function languageName(lang = appLanguage()) {
     nl: "Nederlands",
     pl: "Polski",
   };
-  return names[lang] ?? "Türkçe";
+  return names[lang] ?? "English";
 }
 
 export function looksForeign(text: string, lang = appLanguage()) {

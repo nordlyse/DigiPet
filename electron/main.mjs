@@ -5,21 +5,12 @@ import { spawn, execFileSync } from "node:child_process";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 import { EngineHost, enginePath } from "./engine-host.mjs";
-import { mcpCatalog, osTitle, parseIntent, petReply, runMcp } from "./mcp-tools.mjs";
+import { mcpCatalog, osTitle, parseIntent, petReply, resetChatMemory, runMcp } from "./mcp-tools.mjs";
+import { lang, petName, setLang, t } from "./i18n.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEV_URL = process.env.DIGITPET_URL || "http://localhost:5173";
 const SPECIES = ["cat", "dog", "rabbit", "turtle", "elephant", "bird", "eagle", "ghost"];
-const NAMES = {
-  cat: "Kedi",
-  dog: "Köpek",
-  rabbit: "Tavşan",
-  turtle: "Kaplumbağa",
-  elephant: "Fil",
-  bird: "Kuş",
-  eagle: "Kartal",
-  ghost: "Hayalet",
-};
 
 let overlay = null;
 let picker = null;
@@ -53,6 +44,18 @@ function loadIcon(name, size) {
 
 function windowIcon() {
   return loadIcon("icon.png", 256);
+}
+
+function attachEditMenu(win) {
+  if (!win || win.isDestroyed()) return;
+  win.webContents.on("context-menu", (_e, params) => {
+    const items = [
+      { role: "copy", enabled: Boolean(params.selectionText) },
+      { role: "paste", enabled: Boolean(params.editFlags?.canPaste) },
+      { role: "selectAll" },
+    ];
+    Menu.buildFromTemplate(items).popup({ window: win });
+  });
 }
 
 function licensePath() {
@@ -225,7 +228,7 @@ function addPicker(step) {
     y: Math.round(wa.y + (wa.height - 780) / 2),
     width: 760,
     height: 780,
-    title: "DigiPet",
+    title: t("setupTitle"),
     icon: windowIcon(),
     backgroundColor: "#12202e",
     resizable: false,
@@ -243,6 +246,7 @@ function addPicker(step) {
   });
   picker.setAlwaysOnTop(true, "floating");
   picker.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  attachEditMenu(picker);
   const open = async () => {
     if (!app.isPackaged) {
       const url = new URL(`${DEV_URL}/onboarding.html`);
@@ -273,7 +277,7 @@ function addChat(forceMcp = false) {
     y: Math.round(wa.y + 72),
     width: 420,
     height: 620,
-    title: "DigiPet sohbet",
+    title: t("chatTitle"),
     icon: windowIcon(),
     backgroundColor: "#12202e",
     frame: true,
@@ -290,6 +294,7 @@ function addChat(forceMcp = false) {
   // Must sit above the fullscreen overlay, otherwise close buttons are unclickable.
   chat.setAlwaysOnTop(true, "pop-up-menu");
   chat.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  attachEditMenu(chat);
   chat.on("closed", () => {
     chat = null;
   });
@@ -312,7 +317,7 @@ function addChat(forceMcp = false) {
 function rebuildTray() {
   const cfg = loadConfig();
   const petMenu = SPECIES.map((id) => ({
-    label: `${NAMES[id]}`,
+    label: `${petName(id)}`,
     type: "radio",
     checked: cfg.species === id,
     click: () => {
@@ -325,14 +330,14 @@ function rebuildTray() {
   const menu = Menu.buildFromTemplate([
     { label: "DigiPet", enabled: false },
     { type: "separator" },
-    { label: "Hayvan", submenu: petMenu },
-    { label: "Hayvan seçimini aç…", click: () => addPicker() },
-    { label: `${osTitle()} ajanları…`, click: () => addPicker("mcp") },
-    { label: "Pet ile konuş", click: () => addChat() },
-    { label: "Lisans…", click: () => showLicense() },
+    { label: t("animal"), submenu: petMenu },
+    { label: t("pickAnimal"), click: () => addPicker() },
+    { label: `${osTitle()} ${t("agents")}`, click: () => addPicker("mcp") },
+    { label: t("talk"), click: () => addChat() },
+    { label: t("license"), click: () => showLicense() },
     { type: "separator" },
     {
-      label: "Açılışta başlat",
+      label: t("openAtLogin"),
       type: "checkbox",
       checked: cfg.openAtLogin,
       click: (item) => {
@@ -343,7 +348,7 @@ function rebuildTray() {
     },
     { type: "separator" },
     {
-      label: "Quit",
+      label: t("quit"),
       accelerator: "CmdOrCtrl+Q",
       click: () => quitApp(),
     },
@@ -361,15 +366,21 @@ function rebuildTray() {
 
 function installAppMenu() {
   const quitItem = {
-    label: "Quit",
+    label: t("quit"),
     accelerator: "CmdOrCtrl+Q",
     click: () => quitApp(),
   };
-  const licenseItem = { label: "Lisans…", click: () => showLicense() };
+  const licenseItem = { label: t("license"), click: () => showLicense() };
   const template =
     process.platform === "darwin"
-      ? [{ label: "DigiPet", submenu: [{ role: "about" }, licenseItem, { type: "separator" }, quitItem] }]
-      : [{ label: "DigiPet", submenu: [licenseItem, { type: "separator" }, quitItem] }];
+      ? [
+          { label: "DigiPet", submenu: [{ role: "about" }, licenseItem, { type: "separator" }, quitItem] },
+          { role: "editMenu" },
+        ]
+      : [
+          { label: "DigiPet", submenu: [licenseItem, { type: "separator" }, quitItem] },
+          { role: "editMenu" },
+        ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
   if (process.platform === "darwin") {
     app.setAboutPanelOptions({
@@ -401,7 +412,7 @@ function fallbackCatalog() {
 }
 
 function registerIpc() {
-  ipcMain.handle("get-config", () => loadConfig());
+  ipcMain.handle("get-config", () => ({ ...loadConfig(), lang: lang() }));
   ipcMain.handle("complete-onboarding", (_e, payload) => {
     const prev = loadConfig();
     const species = (typeof payload === "string" ? payload : payload?.species) || prev.species;
@@ -466,12 +477,13 @@ function registerIpc() {
           /* ignore */
         }
       }
+      resetChatMemory();
       return "";
     }
     const cfg = loadConfig();
     const text = String(payload?.text || "");
     const species = payload?.species || cfg.species || "cat";
-    const name = payload?.name || NAMES[species] || "Pet";
+    const name = payload?.name || petName(species) || t("pet");
     const enabled = new Set(cfg.mcps ?? []);
     let toolText = "";
     const intent = parseIntent(text);
@@ -509,11 +521,12 @@ function registerIpc() {
   });
   ipcMain.handle("ready-overlay", () => {
     pushWindows();
-    return { ...loadConfig(), workArea: screen.getPrimaryDisplay().workArea, overlay: overlay?.getBounds() };
+    return { ...loadConfig(), workArea: screen.getPrimaryDisplay().workArea, overlay: overlay?.getBounds(), lang: lang() };
   });
 }
 
 app.whenReady().then(async () => {
+  setLang(app.getLocale());
   if (!app.isPackaged) await waitForVite(DEV_URL);
   registerIpc();
   const cfg = loadConfig();

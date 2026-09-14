@@ -98,6 +98,7 @@ export interface AppConfig {
   openAtLogin: boolean;
   mcpAsked?: boolean;
   mcps?: string[];
+  lang?: string;
 }
 
 export interface OverlayFrame {

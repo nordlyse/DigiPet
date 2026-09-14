@@ -3,6 +3,7 @@ import { addPetModel } from "./pets/addPet";
 import { SPECIES, SPECIES_ORDER } from "./pets/species";
 import type { McpItem, SpeciesId } from "./engine/types";
 import { agentLicenseSummary } from "./licenses";
+import { petName, setLang, t } from "../electron/i18n.mjs";
 
 const preview = document.querySelector<HTMLCanvasElement>("#preview")!;
 const stepPet = document.querySelector<HTMLElement>("#step-pet")!;
@@ -53,11 +54,11 @@ function show(id: SpeciesId) {
     el.classList.toggle("on", (el as HTMLElement).dataset.id === id);
   });
   const spec = SPECIES[id];
-  document.querySelector("#blurb")!.textContent = `${spec.emoji} ${spec.blurb}`;
+  document.querySelector("#blurb")!.textContent = `${spec.emoji} ${t(`blurb_${id}`)}`;
   document.querySelector("#next")!.textContent = askedAlready
-    ? `${spec.nameTr} ile devam`
-    : "Devam — ajanları seç";
-  document.querySelector("#go")!.textContent = `${spec.nameTr} ile başla`;
+    ? `${t("continueWith")} ${petName(id)}`
+    : t("nextAgents");
+  document.querySelector("#go")!.textContent = `${t("startWith")} ${petName(id)}`;
 }
 
 const grid = document.querySelector("#grid")!;
@@ -67,18 +68,18 @@ for (const id of SPECIES_ORDER) {
   btn.type = "button";
   btn.className = "pet-card";
   btn.dataset.id = id;
-  btn.innerHTML = `<span class="emoji">${s.emoji}</span><span class="name">${s.nameTr}</span><span class="sound">“${s.sound}”</span><span class="move">${s.climb === "fly" ? "uçar" : "zıplar"}</span>`;
+  btn.innerHTML = `<span class="emoji">${s.emoji}</span><span class="name">${petName(id)}</span><span class="sound">“${s.sound}”</span><span class="move">${s.climb === "fly" ? t("fly") : t("jump")}</span>`;
   btn.addEventListener("click", () => show(id));
   grid.append(btn);
 }
 
-let t = 0;
+let tick = 0;
 const loop = () => {
   requestAnimationFrame(loop);
-  t += 0.016;
-  model.root.rotation.y = t * 0.7;
+  tick += 0.016;
+  model.root.rotation.y = tick * 0.7;
   model.wings.forEach((wing, i) => {
-    wing.rotation.z = (i === 0 ? 1 : -1) * (0.2 + Math.sin(t * 10) * 0.4);
+    wing.rotation.z = (i === 0 ? 1 : -1) * (0.2 + Math.sin(tick * 10) * 0.4);
   });
   renderer.render(scene, camera);
 };
@@ -117,8 +118,8 @@ async function loadMcps() {
   const data = await window.digipet.mcpCatalog();
   mcpItems = data.items ?? [];
   const os = data.os || "OS";
-  mcpTitle.textContent = `${os} ajanları`;
-  mcpLead.textContent = `${os} için yardımcıları seç. Pet sohbette yalnızca işaretlediklerini kullanır (hava, mail, takvim, uygulama, mesaj). Birden fazla işaretlersen her lisans ayrı ayrı geçerli olur.`;
+  mcpTitle.textContent = `${os} ${t("mcpTitle")}`;
+  mcpLead.textContent = t("mcpLead");
   renderMcps(data.enabled ?? []);
 }
 
@@ -165,7 +166,21 @@ window.digipet?.onOnboardingStep?.((step) => {
 });
 
 void window.digipet?.getConfig().then((cfg) => {
+  if (cfg.lang) setLang(cfg.lang);
+  document.documentElement.lang = cfg.lang || "en";
+  document.querySelector("#step-pet header p")!.textContent = t("setupLead");
+  document.querySelector("#mcp-back")!.textContent = t("back");
+  document.querySelector("#mcp-skip")!.textContent = t("skipHelpers");
   askedAlready = cfg.mcpAsked === true;
+  const grid = document.querySelector("#grid")!;
+  grid.querySelectorAll(".pet-card .name").forEach((el, i) => {
+    const id = SPECIES_ORDER[i];
+    if (id) el.textContent = petName(id);
+  });
+  grid.querySelectorAll(".pet-card .move").forEach((el, i) => {
+    const id = SPECIES_ORDER[i];
+    if (id) el.textContent = SPECIES[id].climb === "fly" ? t("fly") : t("jump");
+  });
   if (cfg.species) show(cfg.species);
   else show(selected);
   if (new URLSearchParams(location.search).get("step") === "mcp" || (cfg.onboarded && !cfg.mcpAsked)) {

@@ -75,7 +75,7 @@ OS helpers (loaded only when the user ticks them in setup or the tray):
 
   Calendar helper (DigiPet)
     License: MIT
-    Calls Apple Calendar, Outlook, or khal. Those apps keep their own terms.
+    Uses EventKit on macOS. Outlook or khal on other OS. Those apps keep their own terms.
 
   Apps helper (DigiPet)
     License: MIT

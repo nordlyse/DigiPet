@@ -125,6 +125,29 @@ function loadPage(win, file) {
   return win.loadFile(path.join(__dirname, "..", "dist", file));
 }
 
+function withOsDialogs(fn) {
+  const restore = [overlay, chat, picker].filter((w) => w && !w.isDestroyed());
+  for (const w of restore) {
+    try {
+      w.setAlwaysOnTop(false);
+    } catch {
+      /* ignore */
+    }
+  }
+  const putBack = () => {
+    try {
+      if (overlay && !overlay.isDestroyed()) overlay.setAlwaysOnTop(true, "floating");
+      if (chat && !chat.isDestroyed()) chat.setAlwaysOnTop(true, "pop-up-menu");
+      if (picker && !picker.isDestroyed()) picker.setAlwaysOnTop(true, "floating");
+    } catch {
+      /* ignore */
+    }
+  };
+  return Promise.resolve()
+    .then(fn)
+    .finally(putBack);
+}
+
 function ensureHelper() {
   if (process.platform !== "darwin") return null;
   const bin = path.join(resourceDir(), "native", "list-windows");
@@ -489,7 +512,7 @@ function registerIpc() {
     const intent = parseIntent(text);
     if (intent && enabled.has(intent.server)) {
       try {
-        toolText = await runMcp(intent);
+        toolText = intent.server === "calendar" ? await withOsDialogs(() => runMcp(intent)) : await runMcp(intent);
       } catch (err) {
         toolText = err instanceof Error ? err.message : "ajan çalışmadı";
       }

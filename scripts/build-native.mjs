@@ -44,4 +44,14 @@ if (process.platform === "darwin") {
   });
   fs.chmodSync(bin, 0o755);
   console.log("built", bin);
+
+  const calBin = path.join(root, "native", "calendar");
+  const calSrc = path.join(root, "native", "calendar.m");
+  execFileSync(
+    "clang",
+    ["-O2", "-fobjc-arc", "-o", calBin, calSrc, "-framework", "EventKit", "-framework", "Foundation"],
+    { stdio: "inherit" },
+  );
+  fs.chmodSync(calBin, 0o755);
+  console.log("built", calBin);
 }

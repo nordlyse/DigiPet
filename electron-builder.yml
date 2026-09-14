@@ -21,6 +21,8 @@ extraResources:
     filter:
       - list-windows
       - list-windows.c
+      - calendar
+      - calendar.m
       - digipet-engine
       - digipet-engine.exe
 mac:
@@ -28,6 +30,10 @@ mac:
   icon: build/icon.png
   hardenedRuntime: false
   gatekeeperAssess: false
+  extendInfo:
+    NSCalendarsUsageDescription: DigiPet reads and adds calendar events when you ask in chat.
+    NSCalendarsFullAccessUsageDescription: DigiPet reads upcoming meetings and adds events you ask for in chat.
+    NSAppleEventsUsageDescription: DigiPet talks to Mail and Messages when those helpers are on.
   target:
     - dmg
     - zip

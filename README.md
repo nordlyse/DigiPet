@@ -84,7 +84,7 @@ npm run dist
 Bu sıra şunu yapar:
 
 1. TypeScript kontrolü + Vite production build (`dist/`)
-2. macOS’ta `native/list-windows` (`clang`); `cargo` varsa Rust `digipet-engine`
+2. macOS’ta `native/list-windows` (`clang`) ve `native/calendar` (EventKit); `cargo` varsa Rust `digipet-engine`
 3. Windows ICO üretimi (`sips` + `scripts/make-ico.mjs`)
 4. electron-builder ile macOS, Linux ve Windows paketleri (`release/`)
 
@@ -152,7 +152,7 @@ xcode-select --install
 - `release/` git’e girmez; paylaşmak için dosyaları GitHub Releases’e veya başka bir yere kopyala.
 - macOS paketi imzasızdır; notarize yok.
 - `npm run dist` bulunduğun OS’tan **üç** platformu da hedefleyebilir (electron-builder çapraz derleme). NSIS için Mac’te Wine otomatik iner.
-- Pencere tırmanan native yardımcı yalnızca **macOS** paketinin `Contents/Resources/native/list-windows` içine konur.
+- Pencere tırmanan native yardımcı ve EventKit takvim yardımcısı yalnızca **macOS** paketinin `Contents/Resources/native/` altına konur.
 
 ## Sohbet (OS ajanları)
 

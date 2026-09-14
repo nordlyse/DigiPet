@@ -1,8 +1,12 @@
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { lang, t } from "./i18n.mjs";
 
 const execFileAsync = promisify(execFile);
+const rootDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export function osKey() {
   if (process.platform === "darwin") return "darwin";
@@ -48,7 +52,7 @@ export function mcpCatalog() {
       title: win ? "Takvim (Outlook)" : mac ? "Takvim (Calendar)" : "Takvim (khal)",
       description: t("calendarDesc"),
       license: mac
-        ? "MIT yardımcı · Apple Calendar kendi koşulları"
+        ? "MIT yardımcı · EventKit / Apple Calendar kendi koşulları"
         : win
           ? "MIT yardımcı · Outlook kendi koşulları"
           : "MIT yardımcı · khal / takvim uygulaması kendi koşulları",
@@ -114,19 +118,34 @@ export function parseIntent(text) {
   if (has(lower, ["mesaj", "imessage", "sms"]) && has(lower, ["gönder", "gonder", "yolla", "send", "mesaj at"])) {
     return { server: "messages", tool: "send", args: { to: after(lower, ["mesaj", "sms"]), body: text } };
   }
-  if (has(lower, ["olay ekle", "add event", "add an event", "new event", "legg til hendelse"])) {
+  const insertCal = has(lower, [
+    "olay ekle",
+    "add event",
+    "add an event",
+    "new event",
+    "legg til hendelse",
+    "olustur",
+    "oluştur",
+    "schedule",
+  ]);
+  if (
+    insertCal &&
+    has(lower, ["takvim", "toplantı", "toplanti", "meeting", "calendar", "randevu", "ajanda", "kalender", "olay", "event"])
+  ) {
     return {
       server: "calendar",
       tool: "insert",
-      args: { title: eventTitle(raw), days: daysOffset(lower) },
+      args: { title: eventTitle(raw), days: daysOffset(lower), ...timeRange(raw) },
     };
   }
   if (has(lower, ["takvim", "toplantı", "toplanti", "meeting", "calendar", "randevu", "ajanda", "kalender"])) {
-    if (has(lower, ["ekle", "add", "insert", "yeni", "new", "legg til", "legge til", "opprett"])) {
+    if (
+      has(lower, ["ekle", "add", "insert", "yeni", "new", "legg til", "legge til", "opprett", "olustur", "oluştur", "schedule"])
+    ) {
       return {
         server: "calendar",
         tool: "insert",
-        args: { title: eventTitle(raw), days: daysOffset(lower) },
+        args: { title: eventTitle(raw), days: daysOffset(lower), ...timeRange(raw) },
       };
     }
     return { server: "calendar", tool: "upcoming", args: {} };
@@ -193,6 +212,8 @@ function cityOf(text) {
   const stop = new Set([
     "yarin",
     "yarın",
+    "yarina",
+    "yarına",
     "tomorrow",
     "bugun",
     "bugün",
@@ -233,18 +254,38 @@ function cityOf(text) {
     "icin",
     "için",
     "bir",
-    "the",
     "city",
     "sehir",
     "şehir",
     "by",
+    "kac",
+    "kaç",
+    "derece",
+    "degree",
+    "degrees",
+    "celsius",
+    "fahrenheit",
+    "temp",
+    "temperature",
+    "sicaklik",
+    "sıcaklık",
+    "wind",
+    "ruzgar",
+    "rüzgar",
+    "many",
+    "much",
+    "peki",
   ]);
   const cleaned = String(text || "")
     .replace(/['’](ta|te|da|de|dan|den)\b/gi, "")
     .replace(/[?¿!.,:;]/g, " ");
   const toks = cleaned.split(/[^A-Za-zÀ-ÿÇĞİÖŞÜçğıöşü-]+/).filter(Boolean);
   const places = toks.filter((w) => !stop.has(w.toLowerCase()) && w.length > 2);
-  return (places[places.length - 1] || places[0] || "").replace(/[^A-Za-zÀ-ÿÇĞİÖŞÜçğıöşü-]/g, "");
+  const capped = places.filter((w) => {
+    const ch = w[0];
+    return ch && ch === ch.toUpperCase() && ch !== ch.toLowerCase();
+  });
+  return (capped[0] || places[0] || "").replace(/[^A-Za-zÀ-ÿÇĞİÖŞÜçğıöşü-]/g, "");
 }
 
 function looksLikePlace(text) {
@@ -258,18 +299,53 @@ function looksLikePlace(text) {
 
 function daysOffset(lower) {
   if (has(lower, ["bugün", "bugun", "today", "i dag"])) return 0;
+  if (has(lower, ["yarın", "yarin", "yarina", "yarına", "tomorrow", "i morgen"])) return 1;
   return 1;
+}
+
+function timeRange(text) {
+  const m = String(text || "")
+    .replace(/,/g, ".")
+    .match(/(\d{1,2})[.:](\d{2})\s*[-–]\s*(\d{1,2})[.:](\d{2})/);
+  if (!m) return { startH: 10, startM: 0, endH: 11, endM: 0 };
+  return { startH: Number(m[1]), startM: Number(m[2]), endH: Number(m[3]), endM: Number(m[4]) };
 }
 
 function eventTitle(text) {
   const s = String(text || "")
+    .replace(/\d{1,2}[.:]\d{2}(\s*[-–]\s*\d{1,2}[.:]\d{2})?/g, " ")
+    .replace(/[?¿!.,:;]/g, " ")
     .replace(
-      /takvime|takvim|calendar|kalender|olay|event|hendelse|toplant[ıi]|meeting|møte|mote|ekle|add|insert|yeni|new|legg til|legge til|opprett|bir|an|a|the|en|et|to|into|onto|yar[ıi]n|tomorrow|bug[uü]n|today|i morgen|i dag/gi,
+      /\b(takvime|takvim|calendar|kalender|olay|event|hendelse|ekle|add|insert|yeni|new|legg til|legge til|opprett|oluştur\w*|olustur\w*|musun|misin|mısın|would you|can you|please|lütfen|lutfen|saat|clock|aras[ıi]nda|between|from|until|bir|an|the|en|et|to|into|onto|yar[ıi]na?|tomorrow|bug[uü]n|today|i morgen|i dag|peki|schedule)\b/gi,
       " ",
     )
     .replace(/\s+/g, " ")
     .trim();
   return (s || "DigiPet").slice(0, 80);
+}
+
+function eventSummary(raw) {
+  return String(raw || "DigiPet")
+    .replace(/["\\]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+}
+
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+
+function localStamp(days, h, m) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(h, m, 0, 0);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:00`;
+}
+
+function hourNum(v, fallback) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 function appAfter(t, prefixes, suffixes) {
@@ -327,15 +403,63 @@ async function powershell(script) {
   return run("powershell", ["-NoProfile", "-NonInteractive", "-Command", script]);
 }
 
+function pickPlace(results, q) {
+  const list = Array.isArray(results) ? results : [];
+  if (!list.length) return null;
+  const name = String(q || "")
+    .trim()
+    .toLowerCase();
+  const exact = list.filter((p) => String(p.name || "").toLowerCase() === name);
+  const pool = exact.length ? exact : list;
+  return pool.find((p) => p.country_code === "NO") || pool[0];
+}
+
+function calendarHelper() {
+  const packed = process.resourcesPath ? path.join(process.resourcesPath, "native", "calendar") : "";
+  if (packed && fs.existsSync(packed)) return packed;
+  const bin = path.join(rootDir, "native", "calendar");
+  if (fs.existsSync(bin)) return bin;
+  const src = path.join(rootDir, "native", "calendar.m");
+  if (process.platform !== "darwin" || !fs.existsSync(src)) return null;
+  execFileSync("clang", ["-O2", "-fobjc-arc", "-o", bin, src, "-framework", "EventKit", "-framework", "Foundation"]);
+  fs.chmodSync(bin, 0o755);
+  return bin;
+}
+
+async function runCalendar(args, ms = 50000) {
+  const bin = calendarHelper();
+  if (!bin) throw new Error(t("calAccess"));
+  try {
+    const { stdout, stderr } = await execFileAsync(bin, args, {
+      timeout: ms,
+      maxBuffer: 1024 * 1024,
+      killSignal: "SIGKILL",
+    });
+    return String(stdout || stderr || "").trim();
+  } catch (err) {
+    const out = String(err?.stdout || err?.stderr || "");
+    if (/NEED_PERM/.test(out) || /NEED_PERM/.test(String(err?.message || ""))) return "NEED_PERM";
+    if (err?.killed || /ETIMEDOUT|timed out/i.test(String(err?.message || ""))) {
+      throw new Error(t("calAccess"));
+    }
+    throw err;
+  }
+}
+
+function formatNextEvent(title, when, where) {
+  const place = String(where || "").trim() || t("noPlace");
+  return `${t("nextMeeting")} ${title} — ${when}. ${t("place")} ${place}`;
+}
+
 async function weather(city) {
   const q = (city || "").trim();
   if (!q) return t("weatherNeedCity");
   const geoRes = await fetch(
-    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=${lang() === "tr" ? "tr" : "en"}`,
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=${lang() === "tr" ? "tr" : "en"}`,
   );
   const geo = await geoRes.json();
-  const place = geo?.results?.[0];
-  if (!place) return `Şehir bulunamadı: ${q}`;
+  const place = pickPlace(geo?.results, q);
+  if (!place) return `${t("cityNotFound")} ${q}`;
   const fxRes = await fetch(
     `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current_weather=true&timezone=auto`,
   );
@@ -407,36 +531,31 @@ $inbox.Items.GetFirst().Delete()
 async function calendar() {
   const plat = osKey();
   if (plat === "darwin") {
-    return osascript(`tell application "Calendar"
-  with timeout of 6 seconds
-    set now to current date
-    set later to now + (24 * 60 * 60)
-    set n to 0
-    set shown to {}
-    repeat with c in calendars
-      try
-        set evs to (every event of c whose start date ≥ now and start date < later)
-        set n to n + (count of evs)
-        repeat with e in evs
-          if (count of shown) < 3 then set end of shown to (summary of e as text)
-        end repeat
-      end try
-      if (count of shown) ≥ 3 then exit repeat
-    end repeat
-    if n is 0 then return "${t("noEvents")}"
-    set bits to shown as text
-    return (n as text) & " ${t("eventsAre")} " & bits
-  end timeout
-end tell`);
+    const out = await runCalendar(["list"]);
+    if (out === "NEED_PERM") return t("calAccess");
+    if (!out || out === "NONE") return t("noEvents");
+    const [title, when, where = ""] = out.split("\t");
+    return formatNextEvent(title || "DigiPet", when || "", where);
   }
   if (plat === "win32") {
     return powershell(`$ol = New-Object -ComObject Outlook.Application
 $cal = $ol.Session.GetDefaultFolder(9)
+$items = $cal.Items
+$items.Sort("[Start]")
 $start = Get-Date
-$end = $start.AddHours(24)
-$n = 0
-foreach ($it in $cal.Items) { try { $s = [datetime]$it.Start; if ($s -ge $start -and $s -lt $end) { $n++ } } catch {} }
-if ($n -eq 0) { "önümüzdeki 24 saatte toplantı yok" } else { "$n toplantı var (Outlook)." }`);
+$end = $start.AddDays(60)
+$next = $null
+foreach ($it in $items) {
+  try {
+    $s = [datetime]$it.Start
+    if ($s -ge $start -and $s -lt $end) { $next = $it; break }
+  } catch {}
+}
+if (-not $next) { "${t("noEvents")}" } else {
+  $loc = [string]$next.Location
+  if (-not $loc) { $loc = "${t("noPlace")}" }
+  "${t("nextMeeting")} $($next.Subject) — $($next.Start). ${t("place")} $loc"
+}`);
   }
   try {
     return await run("khal", ["list", "today", "tomorrow"]);
@@ -446,43 +565,31 @@ if ($n -eq 0) { "önümüzdeki 24 saatte toplantı yok" } else { "$n toplantı v
 }
 
 async function calendarInsert(args) {
-  const title = sanitize(args.title) || "DigiPet";
+  const title = eventSummary(args.title) || "DigiPet";
   const days = Number(args.days) === 0 ? 0 : 1;
+  const startH = hourNum(args.startH, 10);
+  const startM = hourNum(args.startM, 0);
+  const endH = hourNum(args.endH, 11);
+  const endM = hourNum(args.endM, 0);
   const plat = osKey();
   if (plat === "darwin") {
-    return osascript(
-      `tell application "Calendar"
-  with timeout of 12 seconds
-    set startDate to (current date) + (${days} * days)
-    set hours of startDate to 10
-    set minutes of startDate to 0
-    set seconds of startDate to 0
-    set endDate to startDate + (1 * hours)
-    set cal to missing value
-    try
-      set cal to first calendar whose writable is true
-    end try
-    if cal is missing value then set cal to first calendar
-    tell cal
-      make new event with properties {summary:"${quote(title)}", start date:startDate, end date:endDate}
-    end tell
-    return "${t("eventAdded")} ${quote(title)}"
-  end timeout
-end tell`,
-      15000,
-    );
+    const out = await runCalendar(["insert", title, localStamp(days, startH, startM), localStamp(days, endH, endM)]);
+    if (out === "NEED_PERM") return t("calAccess");
+    if (out === "OK") return `${t("eventAdded")} ${title}`;
+    return out || `${t("eventAdded")} ${title}`;
   }
   if (plat === "win32") {
     return powershell(`$ol = New-Object -ComObject Outlook.Application
 $m = $ol.CreateItem(1)
 $m.Subject = "${quote(title)}"
-$m.Start = (Get-Date).Date.AddDays(${days}).AddHours(10)
-$m.End = $m.Start.AddHours(1)
+$m.Start = (Get-Date).Date.AddDays(${days}).AddHours(${startH}).AddMinutes(${startM})
+$m.End = (Get-Date).Date.AddDays(${days}).AddHours(${endH}).AddMinutes(${endM})
 $m.Save()
 "${t("eventAdded")} ${quote(title)}"`);
   }
   try {
-    await run("khal", ["new", days === 0 ? "today 10:00" : "tomorrow 10:00", title]);
+    const day = days === 0 ? "today" : "tomorrow";
+    await run("khal", ["new", `${day} ${pad2(startH)}:${pad2(startM)}`, `${pad2(endH)}:${pad2(endM)}`, title]);
     return `${t("eventAdded")} ${title}`;
   } catch {
     throw new Error(t("noEvents"));

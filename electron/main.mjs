@@ -307,8 +307,6 @@ function addPicker(step) {
         query: step ? { lang: lang(), step } : { lang: lang() },
       });
     }
-      });
-    }
     picker.show();
     picker.focus();
     app.focus({ steal: true });
